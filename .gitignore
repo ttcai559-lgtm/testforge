@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test_storage_temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TestForge
+testcases/*.yaml
+testcases/*.yml
+!testcases/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
