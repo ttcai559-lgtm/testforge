@@ -6,5 +6,6 @@
 
 from .base import ProtocolHandler, Request, Response
 from .http_handler import HTTPHandler
+from .protobuf_handler import ProtobufHandler
 
-__all__ = ["ProtocolHandler", "Request", "Response", "HTTPHandler"]
+__all__ = ["ProtocolHandler", "Request", "Response", "HTTPHandler", "ProtobufHandler"]

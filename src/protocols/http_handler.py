@@ -127,7 +127,14 @@ class HTTPHandler(ProtocolHandler):
         if "text/" in content_type or "application/xml" in content_type:
             return raw_response.text
 
-        # 二进制响应
+        # Protobuf/二进制流响应 - 返回原始bytes以便后续处理
+        # 包括 application/x-protobuf, application/protobuf, application/octet-stream
+        if ("application/x-protobuf" in content_type or
+            "application/protobuf" in content_type or
+            "application/octet-stream" in content_type):
+            return raw_response.content
+
+        # 其他未识别的二进制响应
         return f"<Binary data, {len(raw_response.content)} bytes>"
 
     def validate_config(self, config: Dict[str, Any]) -> bool:

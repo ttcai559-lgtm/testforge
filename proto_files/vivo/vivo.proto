@@ -1,0 +1,655 @@
+﻿// 如果使用此注释，则使用proto3; 否则使用proto2
+syntax = "proto3";
+
+package vivo;
+//生成的数据访问类的类名，如果没有指定此值，则生成的类名为proto文件名的驼峰命名方法
+//option java_outer_classname = "VivoBidding";
+option py_generic_services = true;
+
+message BidRequest {
+
+  // 唯一标识一个BidRequest请求,32位字符组成的字符串
+  string id = 1;
+
+  // 当前协议版本号，目前为1
+  int32 ver = 2;
+
+
+  // 广告位相关信息
+  message Impression  {
+
+    // 此impression在当前Request中的唯一id,从0开始
+    int32 id = 1;
+
+    // 广告位唯一标识,32位字符组成的字符串
+    string tag_id = 2;
+
+    // 广告类型 1：信息流、2：开屏、3：banner、4：插屏
+    int32 ad_type = 3;
+
+    // 是否支持应用下载 0：不支持、1：支持
+    bool dld = 4;
+
+    // 是否支持deeplink广告 0：不支持、1：支持
+    bool deeplink = 5;
+
+    // 底价 单位为 分/CPM
+    int64 bid_floor = 6;
+
+    // 物料模板ID,多个ID的情况下DSP只要返回满足其中一个模板要求的创意即可
+    repeated int32 template_ids = 7;
+
+    // 媒体约定的PMP交易信息
+    message Pmp {
+      //直接交易标识 ID；由交易平台和 DSP 提前约定
+      string deal_id = 1;
+    }
+
+    Pmp pmp = 8;
+
+    // 是否支持自定义h5下载，0:不支持，1支持
+    bool h5_dld = 9;
+
+    // 支持召回的广告数量，默认1
+    int32 ads_count = 10;
+
+    // 投放日期
+    string delivery_date = 11;
+
+    // 是否支持deeplink广告 0：不支持、1：不限制、2：仅支持
+    int32 support_deeplink = 12;
+
+    // cpc类型广告底价，单位：分/CPC
+    int64 cpc_bid_floor = 13;
+
+    //支持的出价类型,0-cpm,1-cpc
+    repeated int32 bid_types = 14;
+
+    //联合出价配置
+    message CoBiddingConfig{
+      //实验id
+      string exp_id = 1;
+    }
+    CoBiddingConfig co_bidding_config = 15;
+
+    //流量质量可投类型 0：不可投、1：可投
+    int32 flowQuality = 16;
+
+    // 原生态or快生态类型
+    int32 source_type = 17;
+
+    //支持的广告形式: 1-普通网址, 2-应用下载, 3-deeplink 普通网址, 4-deeplink 应用下载, 5-自定义H5应用下载, 11-微信小程序SDK调起
+    repeated int32 ad_styles = 18;
+
+  // 限制召回的应用包名集合(如果该集合不为空, 需要严格按照此包名集合进行召回)
+  repeated string pkg_whitelist = 19;
+
+    message IncreaseRatio{
+        //包名
+        string pkg = 1;
+        //提价系数
+        float ratio = 2;
+    }
+    repeated IncreaseRatio increase_ratio = 20;
+
+    //流量包id
+    repeated int32 flow_pkg_ids = 21;
+
+    // 包名黑名单
+    repeated string pkg_blacklist = 22;
+
+    // 轻互动类型：0-不支持，1-激励视频，3-沉浸式
+    int32 easy_play_type = 23;
+
+	// 特征传递的载体(广告维度)
+    map<string, string> imp_context = 24;
+  }
+  repeated Impression imp = 3;
+
+  // 设备信息
+  message Device {
+
+    // ip地址
+    string ip = 1;
+
+    // 厂商
+    string make = 2;
+
+    // 设备型号
+    string model = 3;
+
+    //设备的操作系统Android、IOS
+    string os = 4;
+
+    // 系统版本号
+    string osv = 5;
+
+    // 网络类型(建议使用connection_type) 0：未知网络类型  1:移动网络 2：wifi
+    int32 net_type = 6;
+
+    // 安卓设备的Imei md5 串
+    string did_md5 = 7;
+
+    // 设备的Android ID md5 串
+    string dpid_md5 = 8;
+
+    // 设备的mac地址的md5串
+    string mac_md5 = 9;
+
+    // user agent
+    string ua = 10;
+
+    // 网络 0：无法探测当前网络状态 1：Cellular Network-Unknown Generation 2：2G 3：3G 4：4G 5：5G 100：WiFi
+    int32 connection_type = 11;
+
+    // oaid
+    string oaid = 12;
+
+    // 设备类型: 0-手机;1-平板;2-PC;3-互联网电视
+    int32 device_type = 13;
+
+    // 每次Android启动的时候都会重置的启动标识符
+    string boot_mark = 14;
+
+    // /data/data 最后访问时间戳
+    string update_mark = 15;
+
+    // 个性化开关, 1:开关打开, 0:开关关闭, -1:未知状态, 2:用户手机无该开关
+    int32 ostatus = 16;
+
+  }
+  Device device = 4;
+
+  // 是否测试流量,0：正式流量、1：测试流量(不产生曝光、不收费)
+  int32  test = 5;
+
+  // 竞价类型,1：第一竞价、2：第二竞价；目前只支持第二竞价
+  int32  at = 6;
+
+  // 广告行业黑名单(二级广告行业)
+  repeated int32 bcat = 7;
+
+  // 广告主黑名单
+  repeated int32 badv = 8;
+
+  //应用信息
+  message App{
+    // app 包名; 在交易平台中唯一
+    string bundle = 1;
+    // 媒体类型: 0-电子书, 1-自有媒体, other-联盟媒体
+    int32 media_type = 2;
+  }
+  App app = 10;
+
+  //推广应用列表
+  repeated string installed_app_ids = 11;
+
+  // 广告行业黑名单(二级广告行业)，v2版本
+  repeated int32 bcat_v2 = 12;
+
+  // 转化率分值
+  message Cvr{
+    // 转化类型：1-下载，2-激活
+    int32 cv_type = 1;
+    //转化率
+    float cvr = 2;
+  }
+
+  // 应用转化率
+  message AppCvr{
+    //包名
+    string pkg = 1;
+    //转化率分值对象
+    repeated Cvr cvrs = 2;
+  }
+
+  // 应用转化率数组
+  repeated AppCvr app_cvrs = 13;
+
+  //搜索关键词
+  string query = 14;
+
+  //人群包是否命中
+  int32 crowd_status = 15;
+
+  // 人群包id
+  repeated int32 crowd_package_ids = 16;
+
+  //用户安装列表有效性，1-正常，2-异常
+  int32 installed_app_status = 17;
+
+  //CPD特征字段
+  string query_feature = 18;
+
+  // 频控历史队列
+  message FreqHis{
+    //创意ID
+    repeated string creative_ids = 1;
+    //包名
+    repeated string pkgs = 2;
+  }
+
+  // 频控历史队列
+  FreqHis freq_his = 19;
+
+  //超时时间，单位ms
+  int32 timeout = 20;
+
+  //召回模型类型, 值为1时表示vivo adx能给非常宽裕的邀约超时时间, 那么dsp能走尽可能完整的召回模型
+  int32 model_type = 21;
+
+  // 微信应用请求信息
+  message WechatReqMsg{
+    // 是否支持原生页预算
+    bool wechat_native_page = 1;
+    // 微信版本号
+    int64 wechat_ver = 2;
+    // openSDK版本号
+    int64 opensdk_ver = 3;
+  }
+  // 微信应用信息
+  WechatReqMsg wechat_req_msg = 22;
+
+  // 特征传递的载体(场景维度)
+  map<string, string> context = 23;
+
+  // 特征传递的载体(用户维度)
+  map<string, string> user_context = 24;
+}
+
+message BidResponse {
+  //对应BidRequest中的请求id
+  string id = 1;
+
+  // bidder 返回的响应ID,可用于问题追踪
+  string bid_id = 2;
+  // 状态 是否参与竞价 0:参与竞价 >0:不参与竞价
+  int32 status = 3;
+  // 交易席位信息
+  message SeatBid {
+
+    // 出价结果
+    message Bid  {
+
+      //Bidder 的竞价响应ID
+      string id = 1;
+
+      //  曝光id,对应Impession 中的id
+      int32 imp_id = 2;
+
+      //  出价 单位 分/CPM
+      int64 price = 3;
+
+      // 创意ID
+      string creative_id = 4;
+
+      // 竞价成功通知地址
+      string nurl = 5;
+
+      //  曝光监测地址
+      repeated string imp_trackers = 6;
+
+      // 点击监测地址
+      repeated string clk_trackers = 7;
+
+      //直接交易标识 ID
+      string deal_id = 8;
+
+      //物料信息
+      message Adm {
+        //标题
+        string title = 1;
+
+        //推广物类型
+        int32 ad_type = 2;
+
+        //deeplink链接
+        string deeplink = 3;
+
+        //落地页
+        string landing_site = 4;
+
+        //应用包名  说明：应用包需通过vivo开发者上传到vivo应用商店.
+        string app_package = 5;
+
+        //图片素材
+        message Img{
+          //宽
+          int32 w = 1;
+
+          //高
+          int32 h = 2;
+
+          //图片地址
+          string url = 3;
+
+          // 图片标题
+          string title = 4;
+
+          // 跳转链接
+          string link_url = 5;
+
+          // deepLink跳转链接
+          string deeplink = 6;
+
+          // 图片素材曝光监测地址
+          repeated string imp_trackers = 7;
+
+          // 图片素材点击监测地址
+          repeated string clk_trackers = 8;
+        }
+
+        //素材图片
+        repeated Img img = 6;
+
+        //vivo广告主字典中的广告主ID
+        int64 advertiser_id = 7;
+
+        //vivo行业分类字典中的行业二级分类ID
+        int64 category = 8;
+
+        //创意模板id
+        int32 template_id = 9;
+
+        //视频素材
+        message Video{
+          //宽
+          int32 w = 1;
+
+          //高
+          int32 h = 2;
+
+          //视频素材的播放时长，单位：秒
+          int32 duration = 3;
+
+          //视频文件的码率
+          int32 bitrate = 4;
+
+          //视频文件的url
+          string video_url = 5;
+
+          //视频文件的大小，单位Byte
+          int32 size = 6;
+
+          //视频素材类型，以MIME类型表示，当前仅支持"video/mp4"
+          string type = 7;
+
+        }
+
+        //视频
+        Video video = 10;
+
+        //创意来源（推广产品名称），普通网址类信息流视频广告必填
+        string source = 11;
+
+        //中间页，视频播放完成后，需要webview显示的html资源
+        string render_site = 12;
+
+        //广告主头像地址，竖版视频广告必填
+        string source_avatar = 13;
+
+        //广告文案，长度和是否必填需符合创意模板，激励视频新样式必填
+        string text = 14;
+
+        //DSP侧应用渠道号
+        string channel = 15;
+
+        //下载应用包渠道类型：1-vivo应用商店包，2-广告主渠道包
+        int32 package_channel = 16;
+
+        // 搜索广告展示URL
+        string show_url = 17;
+
+        // 子链对象
+        message Subchain {
+          // 文本
+          string text = 1;
+
+          // 链接
+          string url = 2;
+
+          // deepLink跳转链接
+          string deeplink = 3;
+
+          // 子链物料曝光监测地址
+          repeated string imp_trackers = 4;
+
+          // 子链物料点击监测地址
+          repeated string clk_trackers = 5;
+
+          // 热标文案url
+          string hotText = 6;
+
+          // 打开方式,1：h5,4：dp
+          int32 action_type = 7;
+        }
+
+        // 子链数组
+        repeated Subchain subchain = 18;
+
+        // 互动广告相关数据
+        message Interact {
+          // 互动链接
+          string interact_url = 1;
+
+          //  1 = 横屏 2 = 竖屏
+          int32 screen_orientation = 2;
+        }
+        // 互动广告相关数据
+        Interact interact = 19;
+
+        // 微信小程序sdk调起
+        message MiniProgram {
+          // 小程序原始ID
+          string origin_id = 1;
+
+          // 拉起小程序页面的可带参数路径
+          string path = 2;
+        }
+        // 微信小程序sdk调起
+        MiniProgram mini_program = 20;
+
+        //  快应用链接
+        string quick_link = 21;
+
+        // 应用信息
+        message AppInfo {
+          // icon_url
+          string icon_url = 1;
+
+          // 下载地址
+          string download_url = 2;
+
+          // 版本号 例如 1.1.30
+          string version = 3;
+
+          // 开发者名称
+          string developer = 4;
+
+          // 权限信息
+          string permission = 5;
+
+          // 隐私协议访问地址
+          string privacy_policy_url = 6;
+
+          // 名称
+          string name = 7;
+        }
+
+        // 应用信息
+        AppInfo app_info = 22;
+
+        // 样式id
+        string style_id = 23;
+
+        // icon_url(deeplink调起微信小程序专用)
+        string icon_url = 24;
+
+        // 应用名称(deeplink调起微信小程序专用)
+        string app_name = 25;
+
+        // 轻互动组件，json格式的字符串
+        string easy_playable = 26;
+
+        // 微信应用扩展信息
+        message WechatExt {
+          // 微信小游戏扩展data
+          string wechat_ext_data = 1;
+          // 微信原生页扩展info
+          string wechat_ext_info = 2;
+        }
+
+        // 微信应用扩展信息
+        WechatExt wechat_ext = 27;
+
+        // 副标题
+        string sub_title = 28;
+
+        message CustomList {
+          // 页面副标题颜色
+          string sub_title_color = 1;
+
+          // 内容类型，1：资讯类；2：电商类
+          int32 content_type = 2;
+
+          // 背景图
+          Img bg_pic = 3;
+
+          // 背景图大小
+          int32 bg_size = 4;
+
+          // 词条信息集合
+          repeated EntryInfo entries = 5;
+
+          // 按钮描述
+          string btn_desc = 6;
+
+          // 按钮logo
+          Img btn_logo = 7;
+        }
+
+        // 定制榜单信息
+        CustomList custom_list = 29;
+
+        message EntryInfo {
+          // 词条标题
+          string entry_title = 1;
+
+          // 词条副标题
+          string entry_sub_title = 2;
+
+          string entrySubTitleColor = 3;
+
+          // 词条图片
+          Img entry_pic = 4;
+
+          // 词条图片大小
+          int32 entry_pic_size = 5;
+
+          // 激励图标
+          repeated Img incentive_icons = 6;
+
+          // 激励文案信息
+          repeated IncentiveInfo incentive_infos = 7;
+
+          // 词条deeplink跳转链接
+          string deeplink = 8;
+
+          // 词条h5跳转url
+          string landing_site = 9;
+
+          // 词条热标url
+          string hot_text = 10;
+        }
+
+        message IncentiveInfo {
+          // 激励文案
+          string incentive_text = 1;
+
+          // 激励文案色值
+          string color = 2;
+        }
+
+      }
+
+      //广告物料信息，非预审必填
+      Adm adm = 9;
+
+      //仅用于视频广告;视频开始播放监测地址
+      repeated string video_start_trackers = 10;
+
+      //仅用于视频广告;视频播放结束监测地址
+      repeated string video_complete_trackers = 11;
+
+      //  可见曝光监测地址
+      repeated string viewability_imp_trackers = 12;
+
+      //  上下文监测地址
+      repeated string context_trackers = 13;
+
+      // DSP自定义的extend data，vivo AdExchange会对其内容进行URL安全的base64编码并替换到创意代码的${EXT_DATA}宏中
+      string extend_data = 20;
+
+      // 使用的cvr预估类型，类型定义与Cvr对象中cvType类型对应
+      int32 cv_type = 21;
+
+      // 人群包id
+      repeated int32 crowd_package_ids = 22;
+
+      // deeplink检测地址
+      repeated string dp_trackers = 23;
+
+      // 出价类型：0-cpm 1-cpc，默认0
+      int32 bid_type = 24;
+
+      // 联合出价响应
+      message CoBiddingResp{
+        // 上限类型：0-倍数，1-绝对值
+        int32 up_bound_type = 2;
+        // 上限值
+        float up_bound = 3;
+      }
+      CoBiddingResp co_bidding_resp = 25;
+
+      // 竞败信息回调地址
+      string lurl = 26;
+
+      // 使用的流量包id
+      repeated int32 flow_pkg_idlist = 27;
+
+      // 视频监测地址
+      repeated string video_trackers = 28;
+
+      // 轻互动监测地址
+      repeated string play_trackers = 29;
+
+      // 0：运营消息提醒方式，默认，1：强提醒方式，悬浮+响铃+振动，2：弱提醒
+      int32 strong_reminder = 30;
+
+      // 联合出价响应
+      message BudgetInfo{
+          // 预算一级分类
+          int32 bgt_ctg = 1;
+          // 预算二级分类
+          int32 bgt_dtl = 2;
+          // 预算扩展信息
+          string bgt_ext = 3;
+      }
+      // 预算类型
+      BudgetInfo budget_info = 31;
+    }
+
+    repeated Bid bid = 1;
+
+  }
+
+  repeated SeatBid seat_bid = 4;
+
+  //  未出价原因 0:未知错误、1：技术错误、2：无效请求、4：可疑流量、5：代理id、6：不支持的设备
+  //  7:被屏蔽媒体、8：不匹配的用户
+  int32 nbr = 5;
+
+  // dsp实验ID标识
+  string exp = 6;
+
+}

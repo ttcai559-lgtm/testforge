@@ -1,0 +1,386 @@
+﻿// 如果使用此注释，则使用proto3; 否则使用proto2
+syntax = "proto2";
+
+//生成的数据访问类的类名，如果没有指定此值，则生成的类名为proto文件名的驼峰命名方法
+option java_outer_classname = "BeiziSspBidding";
+option java_multiple_files = false;
+package adx.beizi;
+ 
+message BidRequest { // 竞价请求
+    required string id = 1; // adx 请求ID
+    repeated Imp imp = 2; // Impression 对象列表, 如非测试，至少包含一个Imp实例
+    required string ver = 3; // bid request protocol version, current: 1.0
+
+    optional Site site = 5; // site info
+    optional App app = 6; // app info
+    optional Device device = 7; // device info
+    optional User user = 8; // user info
+
+    optional int32 test = 10; // 0 = live mode, 1 = test mode
+    optional int32 debug = 11; // debug flag, 0 = disable debug info, 1 = enable debug info
+
+    optional int64 tmax = 12; // maximum time in milliseconds allows for bids to be received including internet latency to avoid timeout
+
+    repeated string wseat = 15; // white list of buyers, buyer ID
+    repeated string bseat = 16; // blocked list of buyers, buyer ID
+    repeated string bcat = 20; // blocked list of advertiser categories, IAB node
+    repeated string bapp = 21; // blocked list of applications, app ID
+    optional bool isHttps = 22; // 如果为true，响应的链接需要全部是https的 包括 素材，监测地址 落地页等所有链接
+
+    message Imp { // 曝光信息描述
+        required string id = 1; // 曝光机会ID, adx生成,唯一
+        optional string placeID = 2; // 广告位标识
+        optional string placeName = 31; // 广告位名称
+        required uint64 bidfloor = 3; // CPM底价, 单位分
+        optional int32 at = 4; // 竞价方式 1 = First Price, 2 = Second Price Plus, 3 = Fix Price from bidfloor
+
+        repeated string templateID = 5; // 广告支持的素材模板标识
+        repeated int32 SupportAction  = 6; // 支持的交互属性 0 = NA, 1 = 仅展示, 2 = 点击 App内WebView打开， 3 = 点击 Os Browser 打开, 4 = 点击下载, 5 = DeepLink
+
+        optional Pmp pmp = 12; // 私有交易对象
+
+        optional int32 h = 13; // 广告为高度，像素
+        optional int32 w = 14; // 广告位宽度，像素
+
+        optional int32 adType = 15; // 0 = NA, 1 = 开屏, 2 = 插屏, 3 = banner, 4 = 原生
+        optional int32 fullScreen = 16; // 0 = NA, 1 = 全屏
+        optional int32 screenDir = 17; // 0 = NA, 1 = 竖屏, 2 = 横屏
+
+        optional int32 repeat = 20; // 允许返回的广告个数, 默认为 1； 例如repeat=4，表示最后会竞价出4个出价最高的广告素材进行投放
+
+        message Pmp { // 私有交易对象
+            repeated Deal deals = 1;
+
+            message Deal {
+                required string id = 1; // deal ID
+                required int32 bidfloor = 2; // CPM底价
+                optional int32 at = 5; // 竞价方式 1 = First Price, 2 = Second Price Plus, 3 = Fix Price from bidfloor
+            }
+        }
+
+        // 2017-10-17
+        repeated string wcats = 25; // material IAB white list
+        repeated string bcats = 26; // material IAB black list
+        repeated string brandOrderIDs = 28; // 品牌订单ID列表
+    }
+
+
+    message App { // App信息
+        optional string id = 1;
+        optional string name = 2;
+        optional string bundle = 3;
+        optional string domain = 4;
+        repeated string cat = 5; // app分类
+        optional string storeURL = 6;
+        optional string version = 7;
+    }
+
+    message Site { // 站点信息
+        optional string id = 1;
+        optional string name = 2;
+        optional string domain = 3;
+        repeated string cat = 4;
+        optional string page = 5;
+        optional string ref = 6;
+    }
+
+    message User { // 用户信息
+        optional string id = 1;
+        optional string buyerID = 2; // 提供用户标识的媒体标识
+
+        optional int32 yob = 5;
+        optional string gender = 6; // 性别; "" = unknown, "M" = male, "F" = female, "O" = other
+
+        repeated string tag = 10; // 用户标签
+    }
+
+    message Device { // 设备信息
+        required string ua = 1;
+        optional Geo geo = 2;
+        optional int32 dnt = 3; // Do not Track flag; 0 = tracking is unrestricted, 1 = do not track
+        optional int32 lmt = 4; // Limit Ad Tracking; 0 = tracking is unrestricted, 1 = tracking must be limited per commerical guidelines
+
+        optional string ip = 5;
+        optional string ipv6 = 6;
+        optional int32 deviceType = 7; // 0 = NA, 1 = Mobile/Tablet, 2 = PC, 3 = Connected TV, 4 = Phone, 5 = Tablet, 6 = Connected Device 7 = Set Top Box
+        optional string make = 8; // 品牌 , e.g., "HUAWEI"
+        optional string model = 9; // 型号, e.g., "R9"
+        optional string os = 10; // 操作系统, e.g., "android"
+        optional string osv = 11; // 系统版本, e.g., "31 (12)"
+        optional string hwv = 12; // 硬件版本, e.g., "HUAWEI R9" 同model
+        optional int32 h = 13; // 屏幕高度 in pixels
+        optional int32 w = 14; // 屏幕宽度 in pixels
+        optional int32 ppi = 15; // Pixels Per Inch
+        optional float pxratio = 16; // 屏幕像素密度 (物理像素与逻辑像素的比)
+
+        optional string lang = 17; // 系统语言
+        optional int32 carrier = 18; // 运营商; 0 = NA, 1 = CN_MOBILE, 2 = CN_UNICOM, 3 = CN_TELECOM
+        optional int32 connectionType = 19; // 网络类型; 0 = NA, 1 = ethernet, 2 = WIFI, 3 = Cellular Network, 4 = 2G, 5 = 3G, 6 = 4G 7 = 5G
+
+        optional string ifa = 20; // adx 设备标识
+        optional string didsha1 = 21; // sha1 imei
+        optional string didmd5 = 22; // md5 imei
+        optional string dpidsha1 = 23; // sha1 androidID, iOS for idfa
+        optional string dpidmd5 = 24; // md5 androidID, iOS for idfa
+        optional string macsha1 = 25; // sha1 mac
+        optional string macmd5 = 26; // md5 mac
+
+        // 2017-10-27 add original ID
+        optional string imei = 30;
+        optional string idfa = 31;
+        optional string idfv = 32;
+        optional string androidID = 33;
+        optional string adnroidADID = 34;
+        optional string mac = 35;
+        optional string oaid = 36;
+        optional string gaid = 37;
+        optional string sdkuid = 38;
+        optional string updateMark = 39; //系统更新标识
+        optional string bootMark= 40; //系统启动标识
+        optional string manufacturer = 41; // 硬件制造商
+        optional string harddiskSize = 42; //磁盘空间 单位 B
+        optional string physicalMemory = 43; //物理内存 单位 B
+        optional string wx_api_ver = 44;
+        optional bool wx_installed = 45;
+        optional string ag_vercode = 46; //android 华为市场版本
+        optional string fileMark = 47; //ios设备 系统初始化时间
+        optional string hardwareModel = 48;
+        optional string deviceName = 49;
+        optional string sysUpdateMark = 50; //ioS设备 系统更新时间
+        repeated CAID caids = 51; //caid及对应的version,有多个caid则传多个
+        message CAID {
+            optional string version = 1;
+            optional string caid = 2;
+        }
+
+        optional string hmsCoreVersion = 53; //华为移动服务版本号 "hmsCoreVersion": "6110033
+        optional string romVersion = 54; //系统rom版本
+        optional string honorOaid = 55; //荣耀oaid
+        optional string mntId = 56; //ios的mntId
+        optional string timeZone = 57; //时区
+        optional string countryCode = 58; //国家码
+
+        optional string opensdk_appid = 59; //opensdk_appid
+        optional string opensdk_ver = 60; //opensdk_ver
+        optional string paid = 61;  // 拼多多paid
+        optional string xiaomiStoreVersion = 62; //小米应用商店版本号
+        optional string oppoStoreVersion = 63; //oppo应用商店版本号
+        optional string vivoStoreVersion = 64; //vivo应用商店版本号
+    }
+
+    message Geo { // 位置信息
+        optional float lat = 1;
+        optional float lon = 2;
+        optional uint64 timeStamp = 3; //时间戳
+        optional string name = 4; //使用的座标系的名称，WGS84，GCJ02，BD09 等
+
+        optional string country = 5; // 国家 ISO-3166-1-alpha-3
+        optional string region = 7; // 地区
+        optional string city = 6; // 城市
+        optional string timeZone = 8; // 时区
+    }
+}
+
+message BidResponse { // 竞价响应
+    required string reqid = 1; // adx Bidrequest.id adx 请求标识
+    required string respid = 2; // dsp 响应标识
+    repeated SeatBid seatbid = 3; // 竞价单元
+
+    optional string customData = 10; // dsp 自定义数据, 替换素材曝光监测 落地页中的 __CUSTOM_DATA__ 宏
+    optional int32 nbr = 11; // no biding reason, 0 = NA, 1 = Technical Error, 2 = Invalid request, 6 = unsupported device, 7 = blicked publisher or site, 8 = unmatched user, 9 = daily reader cap met, 10 = daily domain cap met
+
+    // adx server use only
+    optional string result = 30; // 此 bidResponse 的结果
+    optional string dspID = 31; // dspID
+
+    message SeatBid {
+        repeated Bid bid = 1; // 曝光竞价信息
+        optional string seat = 5; // 广告主标识
+        optional int32 group = 6; // 是否按组命中, 0 = 单个 bid 可成交, 1 = 所有 bid 一起成交
+    }
+
+    message Bid { //曝光竞价信息
+        required string bidid = 1; // dsp bid id, 唯一
+        required string impid = 2; // related imp.id
+        required int32 price = 3; // bid price in CPM, 单位分
+
+        optional string ext = 5; // dsp extInfo
+
+        optional string nurl = 8; // 竞价成功回调地址, 可以包含宏
+        // 宏:  可以在 view, landing 和 nurl 中使用
+        // __PRICE__: 成交价格 加密
+        // __SRC_PRICE__:  成交价格 未加密 
+        // __BIDID__: Bid.bidid
+        // __IMPID__: Bid.impid
+        // __EXT__: Bid.ext
+        // __DEALID__: 交易ID 加密
+        // __CRID__: 创意ID
+
+        //  .SCRN_CLK_PT_DOWN_X.    相对与屏幕的（0,0)点坐标的点击位置(x,y); 代表点击触发 "x" 坐标的实际值
+        //  .SCRN_CLK_PT_DOWN_Y.    相对与屏幕的（0,0)点坐标的点击位置(x,y); 代表点击触发 "y" 坐标的实际值
+        //  .SCRN_CLK_PT_UP_X.        相对与屏幕的（0,0)点坐标的点击位置(x,y); 代表点击结束 "x" 坐标的实际值
+        //  .SCRN_CLK_PT_UP_Y.        相对与屏幕的（0,0)点坐标的点击位置(x,y); 代表点击结束 "y" 坐标的实际值
+        //  .AD_CLK_PT_DOWN_X.        相对与广告的（0,0)点坐标位置(x,y); 代表点击触发 "x" 坐标的实际值
+        //  .AD_CLK_PT_DOWN_Y.        相对与广告的（0,0)点坐标位置(x,y); 代表点击触发 "y" 坐标的实际值
+        //  .AD_CLK_PT_UP_X.        相对与广告的（0,0)点坐标位置(x,y); 代表点击结束 "x" 坐标的实际值
+        //  .AD_CLK_PT_UP_Y.        相对与广告的（0,0)点坐标位置(x,y); 代表点击结束 "y" 坐标的实际值
+        //  .UTC_TS.                 时间戳（单位：毫秒13位整型）
+
+        //  __LOSS_MESSAGE__ 竞价失败原因
+        // low_bid_price -> 竞价价格输给其他渠道
+        // low_bid_price_xxx -> 竞价价格输给其他渠道(xxx表示输给的出价(其他dsp的出价),单位是分)
+        // low_bid_price_xxx_yyy -> 竞价价格输给其他渠道(xxx表示输给的出价(其他dsp的出价),单位是分,yyy表示输给的dsp名称)
+        // bid_price_low_bid_floor -> 竞价低于底价
+        // bid_time_out -> 参竞超时
+        // ad_audit_reject -> 广告素材审核未通过
+        // other -> 其他原因
+        repeated string lurls = 10; //竞价失败回调
+
+        optional string dealID = 14; // 如果是私有交易，私有交易ID
+        optional string crid = 15; // dsp创意ID
+        optional string templateID = 16; // dsp素材的模板类型
+        optional Track track = 20; // 监测信息，如果提供则追加到素材原有的监测信息后，落地页URL优先使用返回 track 中的值
+
+        optional Creative creativeInfo  = 21;     // 用于不提前上传创意的DSP, 创意信息
+        optional string brandOrderID = 42; // 品牌订单ID 2025-06-17 品牌订单专用
+
+        // zf++ 2018-01-19 广告角标
+        optional AdLogo adLogo = 100;
+        optional string dspBuyer = 101; // dsp买家标识
+    }
+
+    message Track {
+        repeated string view = 1; // 曝光监测 URLs
+        repeated string click = 2; // 点击监测 URLs
+        optional string landing = 5; // 落地页 URL
+        optional string deepLink = 6; // deeplink
+
+        optional FollowExt  followExt = 10;  //后续事件检测
+        optional VideoTrack videoExt  = 11; 
+
+        optional string miniProgramId = 30; // 小程序原始ID
+        optional string miniProgramPath = 31; // 小程序跳转路径
+        optional string miniProgramExt = 32; // 小程序扩展参数
+        optional int32 isMiniProgram = 33; // 是否是小程序预算 1 - 是 0 - 否
+
+        message FollowExt {
+            repeated string open = 1;          //Android下载后续监测，点击广告后，判断广告主App已安装，直接打开广告主App，发送打开的监测
+            repeated string beginDownload = 2; //Android下载后续监测，下载开始时，发送开始下载的监测，Android下载类广告必须发送
+            repeated string download = 3;      //Android下载后续监测，下载完成后，调起安装界面，并发送下载完成的监测
+            repeated string beginInstall = 12; // Android下载后续监测， 开始安装
+            repeated string install = 4;       //Android下载后续监测，安装完成后，界面显示“应用安装完成”，此时发送安装完成的监测
+            repeated string active = 5;        //Android下载后续监测，在安装完成的界面上点击“打开”按钮，用户打开广告主App，发送激活的监测
+            repeated string deepLinkSuccess = 11; // deepLink 调起第三方成功
+            repeated string close = 6;         //当用户点击关闭广告后，发送广告关闭的监测，双方约定后才会返回，详情见表格下方说明
+            repeated string showSlide = 7;     //对于开屏联动广告，关联图片曝光则触发关联曝光的监测，双方约定后才会返回
+            repeated string pageLoad = 8;      //内开页面后续监测，内开页面加载完成时（包括广告落地页在内的后续所有页面），媒体需要回传“页面加载完成时间
+            repeated string pageClose = 9;     //内开页面后续监测，内开页面关闭时（包括广告落地页在内的后续所有页面），媒体需要回传“页面加载完成时间
+            repeated string pageAction = 10;   //内开页面后续监测，内开页面触发行为时（URL跳转、下载、deeplink、打电话）
+            repeated string dpAppInstalled = 13; //应用已安装
+            repeated string dpAppNotInstalled = 14; //应用未安装
+        }
+
+        message VideoTrack {
+            repeated string start = 1;          //视频开始播放监测URL列表    
+            repeated string pause = 2;          //视频暂停播放监测URL列表    
+            repeated string continue = 3;       //视频继续播放监测URL列表    
+            repeated string exit = 4;           //视频关闭播放监测URL列表    
+            repeated string complete = 5;       //视频完成播放监测URL列表    
+            repeated TShowTrack    showTrack = 6;  //视频已播放时长秒数监测，注意可能会有多
+
+            message TShowTrack {
+                required int32 t = 1;   //视频播放t秒后，发送对应监测
+                repeated string url = 2; //视频播放t秒后，对应的监测URL列表
+            }
+            repeated string percent25 = 10;       //视频播放25%时长监测URL列表    
+            repeated string percent50 = 11;       //视频播放50%时长监测URL列表    
+            repeated string percent75 = 12;       //视频播放75%时长监测URL列表    
+        }
+    }
+
+    message AdLogo {
+        optional string adLogo = 1;    //返回的广告logo, 正方型的小图标
+        optional string adLogoExt = 2; // 返回的广告logo, 长方型的小图标，一般用于鼠标移动到“adLogo”上时，展示此图标
+        optional string adLogoJumpURL = 3; //点击ADlogo后跳转的URL
+        optional string adLabel = 4;   //和ADLogo一起返回的标签，用于媒体不使用图片，直接使用文字的情况',
+    }
+
+    // 以下是为了应对不支持素材创意上传的DSP/ADX而增加的接口
+    //DSP侧的创意相关信息
+    message Creative {
+        required string creativeID    = 1; // DSP侧的素材ID, 针对同一个广告内容，必须是唯一而且不变的
+        required string templateID    = 2; // templateID
+        required int32 templateType   = 3; // template type 模板类型 1-单图 2- 一图三文 3-文字链 4-视频 5 - H5 6-原生
+        repeated Materials materials  = 4; // 素材信息
+        required string cats          = 5; // 创意的IAB分类属性
+        optional PromotionApp promotion = 6; // 推广的APP信息
+        optional string callBackURL = 7;    // ADX审校回调URL, GET 回调，url中可使用如下宏： __CID__ 创意ID ，  __STATE__ 审核状态 值：0-待审核, 1-拒绝, 2-通过
+        optional string interactType = 8;    // 广告交互类型， 1: 仅展示(无落地页), 2: 应用下载(下载地址 apk/iturns), 4: 跳转网页(Landing)
+        optional string    startDate   = 10;   // 创意的有效开始时间，格式：yyyy-mm-dd 或者 yyyy-mm-dd hh:mi:ss
+        optional string    endDate   = 11;     // 创意的有效结束时间，格式：yyyy-mm-dd 或者 yyyy-mm-dd hh:mi:ss
+        required string advertiserID  = 12;  //广告主在DSP侧的唯一ID
+        optional int32 openExternal = 13;  //落地页是否需要调起第三方APP 0-未知, 1-会， 2-不会
+    }
+
+    // 推广的APP信息
+    message PromotionApp {
+        optional string apkName     = 1;   // 下载的app应用名称
+        optional string packageName = 2 ;  // 下载安装包名称，android package name, ios bundle ID
+        optional string appStoreID  = 3 ;  // 下载app的唯一id号，ios ituns ID
+        optional string appDesc     = 4 ;  // app的描述
+        optional string appDownloadURL = 5;// app 下载链接, android: apk URL; ios: ituns URL
+        optional string appIconURL   = 6;   // app的icon图标
+
+        optional string appVersion     = 7;   // app的版本号 必填
+        optional string appDeveloper     = 8;   // 开发者名称 必填
+        optional string permissionsDesc  = 9;   // 权限Url 和权限描述 必填一个
+        optional string permissionsUrl   = 10;   // 权限描述 和权限url 必填一个
+        optional string privacyUrl     = 11;   // 隐私政策Url
+        optional int64 updateTime  = 12;   // app更新时间 单位为毫秒
+        optional int64 packageSizeBytes  = 13;   // app下载包大小，单位 byte，显示需做格式化
+        optional string appintro = 14; //app产品功能介绍 必填
+    }
+
+    // 素材信息
+    message Materials {
+        required string seqID         = 1;   // 基于模板定义的素材顺序
+        required string materialType  = 2;   // 1:image 2:video 3:text 4:data
+        optional ImageElem image      = 3;   // 图片素材
+        optional VideoElem video      = 4;   // 视频素材
+        optional TextElem text        = 5;   // 文字素材，根据seqID,小的为标题，大的为描述
+        optional DataElem data        = 6;   // 内容素材, 保留，如有使用需提前沟通
+    }
+
+    // 图片素材
+    message ImageElem {
+        optional string width     = 1; // 宽度
+        optional string height    = 2; // 高度
+        required string imageType = 3; // 1:icon图片 2:广告图片
+        required string url       = 4; // 图片的URL
+        optional string size      = 5; // 图片的文件大小，字节单位
+        optional string md5       = 6; // 图片内容的md5值
+        optional string mime      = 7; // 图片的mime类型
+    }
+
+    // 视频素材
+    message VideoElem {
+        optional string width    = 1;  // 宽度
+        optional string height   = 2;  // 高度
+        required string url      = 3;  // 视频的URL
+        required string duration = 4;  // 视频播放时长，单位秒
+        optional string size     = 5;  // 视频文件大小，字节单位
+        optional string md5      = 6;  // 视频文件的md5值
+        optional string mime     = 7;  // 视频的mime类型
+    }
+
+    // 文字素材
+    message TextElem { 
+        required string content = 1;     // 文字内容
+    }
+
+    // 内容素材，暂时保留，如有使用需提前沟通
+    message DataElem {
+        optional string DataType = 1;
+        optional string Content  = 2;
+    }
+}

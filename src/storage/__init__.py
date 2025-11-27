@@ -3,5 +3,6 @@
 """
 
 from .yaml_storage import YAMLStorage
+from .environment_storage import EnvironmentStorage
 
-__all__ = ["YAMLStorage"]
+__all__ = ["YAMLStorage", "EnvironmentStorage"]

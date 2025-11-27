@@ -57,7 +57,8 @@ class YAMLStorage:
         with open(filepath, "w", encoding="utf-8") as f:
             yaml.dump(testcase, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
-        return str(filepath)
+        # 只返回文件名,不包含路径
+        return filename
 
     def load_testcase(self, filename: str) -> Dict[str, Any]:
         """

@@ -27,6 +27,11 @@ testcases/*.yaml
 testcases/*.yml
 !testcases/.gitkeep
 
+environments/*.yaml
+environments/*.yml
+!environments/.gitkeep
+!environments/example_dev.yaml
+
 # OS
 .DS_Store
 Thumbs.db
