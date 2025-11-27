@@ -1,0 +1,275 @@
+﻿// 如果使用此注释，则使用proto3; 否则使用proto2
+syntax = "proto3";
+
+//生成的数据访问类的类名，如果没有指定此值，则生成的类名为proto文件名的驼峰命名方法
+option java_outer_classname = "HupuSspBidding";
+option java_multiple_files = false;
+package adx.hupu;
+ 
+
+// 虎扑OpenRTB协议定义
+message BidRequest {
+  string id = 1;                  // 请求id,唯一
+  repeated Imp imp = 2;           // 本次曝光支持的广告信息列表
+  App app = 3;                    // App应用信息
+  Device device = 4;              // 设备信息
+  User user = 5;                  // 用户信息
+}
+
+message Imp {
+  int32 id = 1;                   // 曝光ID
+  string bidfloor = 2;            // 底价,单位是分/千次曝光(CPM)
+  NativeStandard native_standard = 3;              // 广告素材要求
+  Pmp pmp = 4;                    // PreferredDeal相关参数
+  PositionType pt = 5;            // 广告位类型(附录4.1)
+  TradeMode trade_mode = 6;       // 交易模式
+  MaterialMode material_mode = 7;              // 创意形式
+  
+  // 交易模式枚举
+  enum TradeMode {
+    UNKNOWN_TRADE_MODE = 0;
+    PD = 1;                       // Preferred Deal
+    RTB = 2;                      // Real-Time Bidding
+  }
+
+  // 创意形式描述，枚举
+  enum MaterialMode {
+    UNKNOWN = 0;                  // 未知
+    HALF_PICTURE_BOOT = 1;        // 开屏半屏图片
+    FULL_PICTURE_BOOT = 2;        // 开屏全屏图片
+    VIDEO_BOOT = 3;               // 开屏视频
+    TEMPLATE_PICTURE_BOOT = 4;    // 开屏模板图片
+    REWARD_PICTURE = 5;           // 激励图片
+    REWARD_VIDEO = 6;             // 激励视频
+    SMALL_PICTURE = 7;            // 信息流小图
+    LARGE_PICTURE = 8;            // 信息流大图
+    VIDEO = 9;                    // 信息流视频
+    THREE_PICTURE = 10;           // 信息流组图
+  }
+}
+
+// 广告位类型
+enum PositionType {
+  UNKNOWN_POSITION = 0;
+  SPLASH = 1;                     // 开屏
+  FEED = 2;                       // 信息流
+  POSTER = 3;                     // 下拉
+  FLOAT_LOGO = 4;                 // 悬浮logo
+  REWARD = 20;                    // 激励广告
+  INTERSTITIAL = 25;              // 插屏
+}
+
+message NativeStandard {
+  TitleStandard title_standard = 1;         // 广告标题要求
+  BrandStandard brand_standard = 2;         // 品牌名要求
+  ImageStandard image_standard = 3;         // 广告图片素材要求
+  IconStandard icon_standard = 4;           // 图标图片素材要求
+  VideoStandard video_standard = 5;         // 广告视频素材要求
+}
+
+message TitleStandard {
+  int32 len = 1;                  // 广告标题长度限制
+}
+
+message BrandStandard {
+  int32 len = 1;                  // 品牌名长度限制
+}
+
+message ImageStandard {
+  int32 w = 1;                    // 广告图片素材宽度限制
+  int32 h = 2;                    // 广告图片素材高度限制
+  repeated string mimes = 3;      // 广告图片素材mime类型限制
+}
+
+message IconStandard {
+  int32 w = 1;                // 图标素材宽度限制
+  int32 h = 2;               // 图标素材高度限制
+  repeated string mimes = 3;      // 图标素材mime类型限制
+}
+
+message VideoStandard {
+  int32 w = 1;                // 视频素材宽度限制
+  int32 h = 2;               // 视频素材高度限制
+  repeated string mimes = 3;      // 视频素材mime类型限制
+  int32 minduration = 4;          // 视频广告支持最短播放时长(秒)
+  int32 maxduration = 5;          // 视频广告支持最长播放时长(秒)
+}
+
+message Pmp {
+  repeated Deal deals = 1;        // 一组用于本次请求的交易信息
+}
+
+message Deal {
+  string id = 1;                  // 直接交易的唯一ID(广告代码位)
+  string bidfloor = 2;            // 竞价底价(分/千次曝光)
+  int32 at = 3;                   // 计费规则(1=一价)
+}
+
+message App {
+  string name = 1;                // App名称
+  string bundle = 2;              // 包名
+  string content = 3;             // 应用内容的详细信息
+  string version = 4;             // App版本
+}
+
+message Device {
+  string ua = 1;                  // user agent
+  string ip = 2;                  // 设备ip地址
+  string os = 3;                  // 设备操作系统(ios/android/harmonyos)
+  string osv = 4;                 // 操作系统版本号
+  DeviceType devicetype = 5;      // 设备类型
+  string idfa = 6;                // iOS广告标识符
+  string androidid = 7;           // Android ID
+  string imei = 8;                // IMEI
+  string oaid = 9;                // OAID
+  string aaid = 10;               // AAID
+  string make = 11;               // 设备制造商
+  string model = 12;              // 设备型号
+  ConnectionType connectiontype = 13; // 网络类型
+  Carrier carrier = 14;           // 运营商
+  int32 screenheight = 15;        // 屏幕物理高度(像素)
+  int32 screenwidth = 16;         // 屏幕物理宽度(像素)
+  string dpi = 17;                // 屏幕密度
+  string boot_mark = 18;          // 设备启动时间(iOS)
+  string country = 19;            // 国家(iOS)
+  string language = 20;           // 语言(iOS)
+  string device_name_md5 = 21;    // 设备名称的MD5值(iOS)
+  string hardware_machine = 22;   // 设备machine值(iOS)
+  string hardware_model = 23;     // 设备model值(iOS)
+  string physical_memory_byte = 24; // 物理内存容量(iOS)
+  string harddisk_size_byte = 25; // 硬盘容量(iOS)
+  string system_update_sec = 26;  // 系统更新时间(iOS)
+  string time_zone = 27;          // 时区(iOS)
+  string mnt_id = 28;             // 设备唯一识别码(iOS)
+  string device_file_time = 29;   // 设备初始化时间(iOS)
+  string newCaid = 30;            // 最新版本caid
+  string caidNewVersion = 31;     // 最新版本caid对应的版本号
+  string oldCaid = 32;            // 老版本caid
+  string caidOldVersion = 33;     // 老版本caid对应的版本号
+  int64 caidUpdateTime = 34;      // caid更新时间(毫秒)
+  string hms_version = 35;        // 华为HMSCore版本号
+  string ag_version = 36;         // 设备应用市场版本号(华为)
+  string ag_country_code = 37;    // 应用市场中设置的国家和地区(华为)
+  int32 oppo_store_version = 38;  // oppo应用商店版本号
+  int32 vivo_store_version = 39;  // vivo应用商店版本号
+  string mi_store_version = 40;   // 小米应用商店版本号
+  string miui_version = 41;       // 小米系统版本
+  string boot_mark_ali = 42;      // 系统启动时间(阿里反作弊标识)
+  string update_mark_ali = 43;    // 系统更新时间(阿里反作弊标识)
+  string device_start_sec = 44;   // 设备启动时间(即将下线)
+  string update_mark = 45;        // 系统更新时间(即将下线)
+  string logicNum = 46;           // 虎扑APP数字信息以,拼接
+  string density = 47;            // google逻辑密度
+  
+  // 设备类型枚举
+  enum DeviceType {
+    PHONE = 0;                    // 手机
+    TABLET = 1;                   // 平板
+  }
+  
+  // 网络类型枚举
+  enum ConnectionType {
+    UNKNOWN_CONNECTION = 0;
+    ETHERNET = 1;                 // 以太网
+    WIFI = 2;                     // wifi
+    MOBILE_UNKNOWN = 3;           // 移动网络未知
+    MOBILE_2G = 4;                // 移动网络2G
+    MOBILE_3G = 5;                // 移动网络3G
+    MOBILE_4G = 6;                // 移动网络4G
+    MOBILE_5G = 7;                // 移动网络5G
+  }
+  
+  // 运营商枚举
+  enum Carrier {
+    UNKNOWN_CARRIER = 0;
+    CHINA_MOBILE = 1;             // 中国移动
+    CHINA_UNICOM = 2;             // 中国联通
+    CHINA_TELECOM = 3;            // 中国电信
+  }
+}
+
+message User {
+  string id = 1;                  // 虎扑用户设备ID
+}
+
+message BidResponse {
+  string id = 1;                  // 请求ID,对应Bid Request中的id
+  string bidid = 2;               // DSP给出的该次竞价的ID
+  repeated Seatbid seatbid = 3;   // DSP出价,一组SeatBid对象数组
+}
+
+message Seatbid {
+  repeated Bid bid = 1;           // 针对单次曝光的出价
+}
+
+message Bid {
+  string id = 1;                  // DSP对该次出价分配的ID
+  int32 impid = 2;                // 媒体提供的广告创意形式ID
+  int32 orientation = 3; // 素材方向 1.横 2.竖 
+  Native native = 4;              // 参与竞价的原生广告创意信息
+  int32 price = 5;                // DSP出价(分/千次曝光,CPM)
+  string nurl = 6;                // 胜出通知地址(RTB模式必填)
+  string crid = 7;                // DSP系统中的创意ID
+  string dealid = 8;              // 直接交易的唯一ID(广告代码位)
+  Ext ext = 9;                    // 扩展字段
+}
+
+message Native {
+  string title = 1;               // 信息流素材Title信息
+  Image image = 2;                // 图片素材信息
+  repeated Image imageArray = 3;  // 组图图片素材信息
+  Video video = 4;                // 视频素材信息
+  string brand = 5;               // 信息流素材来源品牌名
+  Link link = 6;                  // 落地页跳转链接、下载链接
+}
+
+message Image {
+  string url = 1;                 // 图片素材URL
+  string type = 2;              // 图片素材文件类型(附录4.2)
+  int32 width = 3;                // 图片素材尺寸宽度
+  int32 height = 4;               // 图片素材尺寸高度
+}
+
+message Video {
+  string url = 1;                 // 视频素材URL
+  string type = 2;              // 视频素材文件类型(附录4.2)
+  int32 width = 3;                // 视频素材尺寸宽度
+  int32 height = 4;               // 视频素材尺寸高度
+}
+
+message Link {
+  string ldp = 1;                 // 落地页地址
+  string dp = 2;                  // deeplink地址
+  int32 isDownload = 3;           // 是否是下载类广告(0.否1.是)
+  string xiaomiPackageName = 4;   // 小米商店的具体应用包名
+}
+
+message Ext {
+  repeated string pm = 1;         // 曝光监测URL数组
+  repeated string cm = 2;         // 点击监测URL数组
+  repeated string em = 3;         // 视频播放完成监测URL
+  repeated Tm tm = 4;             // 视频播放进度监测URL
+  repeated string lm = 5;         // dp跳转成功监测URL
+  string icon_url = 6;            // icon地址
+  Pkd pkd = 7;                    // 下载包信息
+}
+
+message Tm {
+  int32 t = 1;                    // 触发监测链接的时间点(秒)
+  string url = 2;                 // 监测URL
+}
+
+message Pkd {
+  string name = 1;                // 下载包名称
+  string icon = 2;                // 下载包icon地址
+  string package_name = 3;        // 下载包包名
+  string developer = 4;           // 开发者(厂商)
+  string version = 5;             // 下载包版本
+  int32 size = 6;                 // 下载包大小(单位byte)
+  string permission_url = 7;      // 应用权限列表
+  string privacy_url = 8;         // 隐私协议url
+  string detail_url = 9;          // 应用详情url
+  string release_date = 10;       // 最新版本发布日期 格式:yyyy年MM月dd日
+  string md5 = 11;                 // 下载包md5值
+  string download_url = 12;        // 下载包地址
+}

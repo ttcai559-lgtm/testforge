@@ -414,10 +414,15 @@ async def upload_proto_file(name: str, file: UploadFile = File(...)):
         if not success:
             raise HTTPException(status_code=500, detail=f"Proto compilation failed: {message}")
 
+        # 获取编译后的message类型列表
+        message_types = protobuf_handler.get_message_types(name)
+
         return {
             "message": "Proto file uploaded and compiled successfully",
             "proto_path": proto_path,
-            "compilation_message": message
+            "compilation_message": message,
+            "message_types": message_types,  # 返回message类型列表
+            "message_count": len(message_types)
         }
 
     except HTTPException:

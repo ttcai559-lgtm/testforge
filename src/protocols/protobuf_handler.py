@@ -53,10 +53,22 @@ class ProtobufHandler:
         env_proto_dir = self.proto_dir / environment_name
         env_proto_dir.mkdir(exist_ok=True)
 
-        # 保存proto文件
+        # 保存proto文件，确保使用UTF-8编码
         proto_file_path = env_proto_dir / f"{environment_name}.proto"
-        with open(proto_file_path, "wb") as f:
-            f.write(proto_content)
+
+        # 如果是bytes，尝试解码为UTF-8再保存
+        if isinstance(proto_content, bytes):
+            try:
+                proto_text = proto_content.decode('utf-8')
+                with open(proto_file_path, "w", encoding='utf-8') as f:
+                    f.write(proto_text)
+            except UnicodeDecodeError:
+                # 如果解码失败，直接以二进制写入
+                with open(proto_file_path, "wb") as f:
+                    f.write(proto_content)
+        else:
+            with open(proto_file_path, "w", encoding='utf-8') as f:
+                f.write(proto_content)
 
         return str(proto_file_path)
 
@@ -93,24 +105,43 @@ class ProtobufHandler:
                 str(proto_file_path)
             ]
 
+            print(f"[ProtobufHandler] Compiling proto for environment: {environment_name}")
+            print(f"[ProtobufHandler] Proto file: {proto_file_path}")
+            print(f"[ProtobufHandler] Output dir: {env_compiled_dir}")
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                encoding='utf-8',
+                errors='replace'  # 处理编码错误
             )
+
+            # 检查是否生成了_pb2.py文件
+            pb2_file = env_compiled_dir / f"{environment_name}_pb2.py"
+            if not pb2_file.exists():
+                return False, f"Compilation did not generate expected output file: {pb2_file}"
 
             # 清除之前加载的模块缓存
             if environment_name in self._loaded_modules:
                 del self._loaded_modules[environment_name]
 
+            print(f"[ProtobufHandler] Compilation successful!")
             return True, f"Proto file compiled successfully: {proto_file_path.name}"
 
         except subprocess.CalledProcessError as e:
-            error_msg = f"Compilation failed: {e.stderr}"
+            stderr = e.stderr if e.stderr else "No error output"
+            stdout = e.stdout if e.stdout else "No output"
+            error_msg = f"Compilation failed:\nSTDERR: {stderr}\nSTDOUT: {stdout}\nReturn code: {e.returncode}"
+            print(f"[ProtobufHandler] Proto compilation error: {error_msg}")
             return False, error_msg
         except Exception as e:
-            return False, f"Unexpected error during compilation: {str(e)}"
+            error_msg = f"Unexpected error during compilation: {str(e)}"
+            print(f"[ProtobufHandler] Proto compilation exception: {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return False, error_msg
 
     def get_message_types(self, environment_name: str) -> List[str]:
         """
