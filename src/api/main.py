@@ -7,12 +7,18 @@ TestForge - FastAPI Backend
 
 
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import sys
+import os
+import shutil
+import json
+import asyncio
 from pathlib import Path
+from datetime import datetime
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -20,6 +26,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.protocols import HTTPHandler, ProtobufHandler
 from src.core import AssertionEngine, AssertionResult
 from src.storage import YAMLStorage, EnvironmentStorage
+
+# 导入AI测试用例生成模块
+try:
+    from src.ai_testcase_gen.generator import TestCaseGenerator
+except ImportError:
+    TestCaseGenerator = None
 
 app = FastAPI(title="TestForge API", version="1.0.0")
 
@@ -481,6 +493,369 @@ async def check_proto_status(name: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== AI测试用例生成 API ====================
+
+@app.post("/api/ai/generate-testcases")
+async def generate_testcases(
+    file: UploadFile = File(...),
+    ai_model: str = "claude",
+    enable_defect_detection: bool = True,
+    enable_question_generation: bool = True
+):
+    """
+    AI测试用例生成接口
+
+    上传需求文档（Word/PDF），返回生成的XMind文件路径
+    """
+    import time
+
+    if TestCaseGenerator is None:
+        raise HTTPException(
+            status_code=501,
+            detail="AI测试用例生成功能未安装，请先安装依赖: pip install python-docx PyMuPDF anthropic xmind"
+        )
+
+    # 验证文件类型
+    allowed_extensions = ['.docx', '.doc', '.pdf']
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式：{file_ext}。支持的格式: {', '.join(allowed_extensions)}"
+        )
+
+    # 创建临时上传目录
+    upload_dir = Path(__file__).parent.parent / "ai_testcase_gen" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存上传的文件
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{file.filename}"
+    file_path = upload_dir / safe_filename
+
+    try:
+        # 保存文件
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        # 记录开始时间
+        start_time = time.time()
+
+        # 生成测试用例
+        generator = TestCaseGenerator(ai_model=ai_model)
+        result = generator.generate(
+            document_path=str(file_path),
+            enable_defect_detection=enable_defect_detection,
+            enable_question_generation=enable_question_generation
+        )
+
+        # 计算耗时
+        elapsed_time = time.time() - start_time
+
+        # 提取相对路径用于下载
+        xmind_path = result.get("xmind_path", "")
+        if xmind_path:
+            # 转换为相对于outputs目录的路径
+            xmind_filename = Path(xmind_path).name
+        else:
+            raise HTTPException(status_code=500, detail="XMind文件生成失败")
+
+        # 返回结果
+        summary = result.get("summary", result.get("statistics", {}))
+        return {
+            "success": True,
+            "xmind_filename": xmind_filename,
+            "download_url": f"/api/ai/download/{xmind_filename}",
+            "elapsed_time": round(elapsed_time, 2),
+            "elapsed_time_formatted": f"{int(elapsed_time // 60)}分{int(elapsed_time % 60)}秒" if elapsed_time >= 60 else f"{int(elapsed_time)}秒",
+            "summary": {
+                "total_test_cases": summary.get("total_cases", summary.get("total_test_cases", 0)),
+                "total_questions": summary.get("questions_count", summary.get("total_questions", 0)),
+                "total_defects": summary.get("defects_count", summary.get("total_defects", 0)),
+                "modules_count": summary.get("modules_count", 0)
+            }
+        }
+
+    except Exception as e:
+        # 清理上传的文件
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+
+
+@app.post("/api/ai/generate-testcases-stream")
+async def generate_testcases_stream(
+    file: UploadFile = File(...),
+    ai_model: str = "claude",
+    enable_defect_detection: bool = True,
+    enable_question_generation: bool = True
+):
+    """
+    AI测试用例生成接口 (流式响应版本)
+
+    使用SSE (Server-Sent Events) 实时推送生成进度
+    """
+    import time
+    import queue
+    import threading
+
+    if TestCaseGenerator is None:
+        raise HTTPException(
+            status_code=501,
+            detail="AI测试用例生成功能未安装，请先安装依赖: pip install python-docx PyMuPDF anthropic xmind"
+        )
+
+    # 验证文件类型
+    allowed_extensions = ['.docx', '.doc', '.pdf']
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式：{file_ext}。支持的格式: {', '.join(allowed_extensions)}"
+        )
+
+    # 创建临时上传目录
+    upload_dir = Path(__file__).parent.parent / "ai_testcase_gen" / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存上传的文件
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{file.filename}"
+    file_path = upload_dir / safe_filename
+
+    # 进度队列
+    progress_queue = queue.Queue()
+
+    def progress_callback(message: str, percent: int):
+        """进度回调函数，将进度放入队列"""
+        progress_queue.put({
+            "type": "progress",
+            "message": message,
+            "percent": percent
+        })
+
+    async def generate_stream():
+        """生成器函数，用于SSE流式响应"""
+        try:
+            # 保存文件
+            with open(file_path, "wb") as f:
+                shutil.copyfileobj(file.file, f)
+
+            # 记录开始时间
+            start_time = time.time()
+
+            # 在后台线程中运行生成任务
+            result_container = {}
+            error_container = {}
+
+            def run_generation():
+                try:
+                    generator = TestCaseGenerator(ai_model=ai_model)
+                    generator.set_progress_callback(progress_callback)
+
+                    result = generator.generate(
+                        document_path=str(file_path),
+                        enable_defect_detection=enable_defect_detection,
+                        enable_question_generation=enable_question_generation
+                    )
+                    result_container['result'] = result
+                except Exception as e:
+                    error_container['error'] = str(e)
+                finally:
+                    # 发送结束信号
+                    progress_queue.put(None)
+
+            # 启动生成线程
+            gen_thread = threading.Thread(target=run_generation)
+            gen_thread.start()
+
+            # 持续发送进度更新
+            while True:
+                try:
+                    # 从队列获取进度，设置超时避免阻塞
+                    progress_data = progress_queue.get(timeout=0.5)
+
+                    if progress_data is None:
+                        # 结束信号
+                        break
+
+                    # 发送SSE格式的进度数据
+                    yield f"data: {json.dumps(progress_data, ensure_ascii=False)}\n\n"
+
+                except queue.Empty:
+                    # 没有新进度，发送心跳
+                    yield f"data: {json.dumps({'type': 'heartbeat'}, ensure_ascii=False)}\n\n"
+
+            # 等待生成线程完成
+            gen_thread.join()
+
+            # 计算耗时
+            elapsed_time = time.time() - start_time
+
+            # 检查是否有错误
+            if 'error' in error_container:
+                yield f"data: {json.dumps({'type': 'error', 'message': error_container['error']}, ensure_ascii=False)}\n\n"
+                return
+
+            # 提取结果
+            result = result_container.get('result', {})
+            xmind_path = result.get("xmind_path", "")
+
+            if xmind_path:
+                xmind_filename = Path(xmind_path).name
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'XMind文件生成失败'}, ensure_ascii=False)}\n\n"
+                return
+
+            # 发送最终结果
+            summary = result.get("summary", result.get("statistics", {}))
+            final_data = {
+                "type": "complete",
+                "success": True,
+                "xmind_filename": xmind_filename,
+                "download_url": f"/api/ai/download/{xmind_filename}",
+                "elapsed_time": round(elapsed_time, 2),
+                "elapsed_time_formatted": f"{int(elapsed_time // 60)}分{int(elapsed_time % 60)}秒" if elapsed_time >= 60 else f"{int(elapsed_time)}秒",
+                "summary": {
+                    "total_test_cases": summary.get("total_cases", summary.get("total_test_cases", 0)),
+                    "total_questions": summary.get("questions_count", summary.get("total_questions", 0)),
+                    "total_defects": summary.get("defects_count", summary.get("total_defects", 0)),
+                    "modules_count": summary.get("modules_count", 0)
+                }
+            }
+            yield f"data: {json.dumps(final_data, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            # 清理上传的文件
+            if file_path.exists():
+                file_path.unlink()
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get("/api/ai/download/{filename:path}")
+async def download_xmind(filename: str):
+    """
+    下载生成的XMind文件
+    """
+    from urllib.parse import unquote
+
+    # URL解码文件名
+    decoded_filename = unquote(filename)
+
+    # 验证文件名安全性
+    if ".." in decoded_filename or "/" in decoded_filename or "\\" in decoded_filename:
+        raise HTTPException(status_code=400, detail="非法的文件名")
+
+    # 构建文件路径 - 指向实际的outputs目录 (testforge/outputs/)
+    outputs_dir = Path(__file__).parent.parent.parent / "outputs"
+    file_path = outputs_dir / decoded_filename
+
+    # 调试日志
+    print(f"下载请求 - 原始文件名: {filename}")
+    print(f"下载请求 - 解码文件名: {decoded_filename}")
+    print(f"下载请求 - 文件路径: {file_path}")
+    print(f"下载请求 - 文件存在: {file_path.exists()}")
+
+    # 检查文件是否存在
+    if not file_path.exists():
+        # 如果文件不存在,尝试列出目录中的所有文件
+        print(f"可用文件列表:")
+        if outputs_dir.exists():
+            for f in outputs_dir.iterdir():
+                print(f"  - {f.name}")
+        raise HTTPException(status_code=404, detail=f"文件不存在: {decoded_filename}")
+
+    # 返回文件
+    return FileResponse(
+        path=str(file_path),
+        filename=decoded_filename,
+        media_type="application/octet-stream"
+    )
+
+
+@app.get("/api/ai/history")
+async def get_history():
+    """
+    获取历史生成的测试用例列表
+    """
+    outputs_dir = Path(__file__).parent.parent.parent / "outputs"
+
+    if not outputs_dir.exists():
+        return {"files": [], "total": 0}
+
+    files = []
+    for file_path in sorted(outputs_dir.glob("*.xmind"), key=lambda p: p.stat().st_mtime, reverse=True):
+        stat = file_path.stat()
+        files.append({
+            "filename": file_path.name,
+            "size": stat.st_size,
+            "created_at": stat.st_mtime,
+            "download_url": f"/api/ai/download/{file_path.name}"
+        })
+
+    return {"files": files, "total": len(files)}
+
+
+@app.delete("/api/ai/delete/{filename:path}")
+async def delete_file(filename: str):
+    """
+    删除指定的XMind文件
+    """
+    from urllib.parse import unquote
+
+    # URL解码文件名
+    decoded_filename = unquote(filename)
+
+    # 验证文件名安全性
+    if ".." in decoded_filename or "/" in decoded_filename or "\\" in decoded_filename:
+        raise HTTPException(status_code=400, detail="非法的文件名")
+
+    # 构建文件路径 - 指向实际的outputs目录 (testforge/outputs/)
+    outputs_dir = Path(__file__).parent.parent.parent / "outputs"
+    file_path = outputs_dir / decoded_filename
+
+    # 检查文件是否存在
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"文件不存在: {decoded_filename}")
+
+    # 删除文件
+    try:
+        file_path.unlink()
+        print(f"已删除文件: {file_path}")
+        return {"success": True, "message": f"文件 {decoded_filename} 已删除"}
+    except Exception as e:
+        print(f"删除文件失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除文件失败: {str(e)}")
+
+
+@app.get("/api/ai/status")
+async def ai_status():
+    """
+    检查AI测试用例生成功能状态
+    """
+    return {
+        "available": TestCaseGenerator is not None,
+        "supported_formats": [".docx", ".doc", ".pdf"],
+        "supported_models": ["claude", "openai"],
+        "features": {
+            "defect_detection": True,
+            "question_generation": True,
+            "confidence_scoring": True
+        }
+    }
 
 
 if __name__ == "__main__":
