@@ -1,9 +1,11 @@
 """
-文档解析器：解析Word和PDF文档
+文档解析器：解析Word和PDF文档,支持提取图片
 """
 import os
 import re
-from typing import Dict, List, Optional
+import base64
+import io
+from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 import logging
 
@@ -18,7 +20,7 @@ class DocumentParser:
 
     def parse(self, file_path: str) -> Dict:
         """
-        解析文档并提取结构化内容
+        解析文档并提取结构化内容(包括图片)
 
         Args:
             file_path: 文档路径
@@ -27,15 +29,16 @@ class DocumentParser:
             解析结果字典：
             {
                 'title': '文档标题',
-                'sections': [
+                'sections': [...],
+                'raw_text': '完整文本',
+                'images': [
                     {
-                        'heading': '章节标题',
-                        'level': 1,  # 标题层级
-                        'content': '章节内容',
-                        'subsections': [...]  # 子章节
+                        'index': 0,
+                        'data': 'base64编码的图片数据',
+                        'format': 'png/jpeg/...',
+                        'position': '图片在文档中的位置描述'
                     }
-                ],
-                'raw_text': '完整文本'
+                ]
             }
         """
         file_ext = Path(file_path).suffix.lower()
@@ -50,6 +53,13 @@ class DocumentParser:
 
     def _parse_word(self, file_path: str) -> Dict:
         """解析Word文档（支持.doc和.docx）"""
+        # 首先验证文件存在且可读
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"文件不存在: {file_path}")
+
+        if os.path.getsize(file_path) == 0:
+            raise ValueError(f"文件为空: {file_path}")
+
         # 检查是否是旧的.doc格式
         is_old_doc = self._is_old_doc_format(file_path)
 
@@ -63,7 +73,12 @@ class DocumentParser:
         except ImportError:
             raise ImportError("请安装 python-docx: pip install python-docx")
 
-        doc = Document(file_path)
+        try:
+            doc = Document(file_path)
+        except Exception as e:
+            # 增强错误信息
+            logger.error(f"python-docx无法打开文件: {e}")
+            raise ValueError(f"无法打开Word文档，可能文件已损坏或格式不正确: {str(e)}")
 
         # 提取文档标题
         title = self._extract_title_from_word(doc)
@@ -74,14 +89,48 @@ class DocumentParser:
         # 提取完整文本
         raw_text = '\n'.join([para.text for para in doc.paragraphs if para.text.strip()])
 
+        # 提取图片
+        images = self._extract_images_from_word(doc)
+        logger.info(f"从Word文档中提取了 {len(images)} 张图片")
+
         return {
             'title': title,
             'sections': sections,
             'raw_text': raw_text,
+            'images': images,
             'metadata': {
                 'format': 'docx',
                 'paragraph_count': len(doc.paragraphs),
-                'section_count': len(sections)
+                'section_count': len(sections),
+                'image_count': len(images)
+            }
+        }
+
+    def _parse_docx_directly(self, doc, file_path: str) -> Dict:
+        """直接解析已打开的docx文档对象"""
+        # 提取文档标题
+        title = self._extract_title_from_word(doc)
+
+        # 提取章节结构
+        sections = self._extract_sections_from_word(doc)
+
+        # 提取完整文本
+        raw_text = '\n'.join([para.text for para in doc.paragraphs if para.text.strip()])
+
+        # 提取图片
+        images = self._extract_images_from_word(doc)
+        logger.info(f"从Word文档中提取了 {len(images)} 张图片")
+
+        return {
+            'title': title,
+            'sections': sections,
+            'raw_text': raw_text,
+            'images': images,
+            'metadata': {
+                'format': 'docx',
+                'paragraph_count': len(doc.paragraphs),
+                'section_count': len(sections),
+                'image_count': len(images)
             }
         }
 
@@ -159,10 +208,15 @@ class DocumentParser:
         except ImportError:
             raise ImportError("解析.doc文件需要安装 pywin32: pip install pywin32")
 
-        # 初始化COM
-        pythoncom.CoInitialize()
+        word = None
+        doc = None
+        com_initialized = False
 
         try:
+            # 初始化COM
+            pythoncom.CoInitialize()
+            com_initialized = True
+
             # 创建Word应用程序对象
             word = win32com.client.Dispatch("Word.Application")
             word.Visible = False
@@ -191,13 +245,47 @@ class DocumentParser:
                 'title': title,
                 'sections': sections,
                 'raw_text': raw_text,
+                'images': [],  # 旧版.doc格式不支持图片提取
                 'metadata': {
                     'format': 'doc',
-                    'section_count': len(sections)
+                    'section_count': len(sections),
+                    'image_count': 0
                 }
             }
+        except Exception as e:
+            logger.error(f"使用win32com打开文档失败: {e}")
+
+            # 清理资源
+            try:
+                if doc is not None:
+                    doc.Close(False)
+            except:
+                pass
+
+            try:
+                if word is not None:
+                    word.Quit()
+            except:
+                pass
+
+            # 如果win32com失败，尝试用python-docx打开（可能是误判的docx文件）
+            logger.info("尝试使用python-docx解析...")
+            try:
+                from docx import Document
+                docx_doc = Document(file_path)
+                # 如果成功打开，说明这是个docx文件，重新用docx方法解析
+                logger.info("文件实际上是.docx格式，使用python-docx解析")
+                # 为避免无限递归，我们直接在这里处理
+                return self._parse_docx_directly(docx_doc, file_path)
+            except Exception as e2:
+                logger.error(f"python-docx也无法打开: {e2}")
+                raise ValueError(f"无法解析文档: win32com错误({e}), python-docx错误({e2})")
         finally:
-            pythoncom.CoUninitialize()
+            if com_initialized:
+                try:
+                    pythoncom.CoUninitialize()
+                except:
+                    pass
 
     def _extract_sections_from_text(self, text: str) -> List[Dict]:
         """从纯文本中提取章节（简单实现）"""
@@ -289,6 +377,10 @@ class DocumentParser:
         # 获取章节数（在关闭前）
         section_count = len(sections)
 
+        # 提取图片
+        images = self._extract_images_from_pdf(doc)
+        logger.info(f"从PDF文档中提取了 {len(images)} 张图片")
+
         # 关闭文档
         doc.close()
 
@@ -296,10 +388,12 @@ class DocumentParser:
             'title': title,
             'sections': sections,
             'raw_text': raw_text,
+            'images': images,
             'metadata': {
                 'format': 'pdf',
                 'page_count': page_count,
-                'section_count': section_count
+                'section_count': section_count,
+                'image_count': len(images)
             }
         }
 
@@ -357,6 +451,100 @@ class DocumentParser:
                 sections.append(current_section)
 
         return sections
+
+    def _extract_images_from_word(self, doc) -> List[Dict]:
+        """从Word文档中提取图片"""
+        images = []
+
+        try:
+            # 遍历所有段落中的runs
+            for para_idx, para in enumerate(doc.paragraphs):
+                for run in para.runs:
+                    # 检查run中是否包含图片
+                    if hasattr(run, '_element'):
+                        for drawing in run._element.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}drawing'):
+                            # 获取图片的blip信息
+                            blips = drawing.findall('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip')
+                            for blip in blips:
+                                embed_id = blip.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed')
+                                if embed_id:
+                                    try:
+                                        # 获取图片数据
+                                        image_part = doc.part.related_parts[embed_id]
+                                        image_bytes = image_part.blob
+
+                                        # 转换为base64
+                                        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+                                        # 获取图片格式
+                                        content_type = image_part.content_type
+                                        image_format = content_type.split('/')[-1] if '/' in content_type else 'unknown'
+
+                                        images.append({
+                                            'index': len(images),
+                                            'data': image_base64,
+                                            'format': image_format,
+                                            'position': f'段落{para_idx + 1}',
+                                            'media_type': content_type
+                                        })
+
+                                        logger.debug(f"提取图片 #{len(images)}, 格式: {image_format}, 位置: 段落{para_idx + 1}")
+                                    except Exception as e:
+                                        logger.warning(f"提取图片失败: {e}")
+        except Exception as e:
+            logger.error(f"提取Word图片时发生错误: {e}")
+
+        return images
+
+    def _extract_images_from_pdf(self, doc) -> List[Dict]:
+        """从PDF文档中提取图片"""
+        images = []
+
+        try:
+            import fitz  # PyMuPDF
+
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                image_list = page.get_images()
+
+                for img_index, img in enumerate(image_list):
+                    try:
+                        xref = img[0]  # 图片的xref索引
+                        base_image = doc.extract_image(xref)
+
+                        if base_image:
+                            image_bytes = base_image["image"]
+                            image_ext = base_image["ext"]
+
+                            # 转换为base64
+                            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+                            # 映射格式到media_type
+                            media_type_map = {
+                                'png': 'image/png',
+                                'jpg': 'image/jpeg',
+                                'jpeg': 'image/jpeg',
+                                'gif': 'image/gif',
+                                'bmp': 'image/bmp',
+                                'tiff': 'image/tiff'
+                            }
+                            media_type = media_type_map.get(image_ext.lower(), f'image/{image_ext}')
+
+                            images.append({
+                                'index': len(images),
+                                'data': image_base64,
+                                'format': image_ext,
+                                'position': f'第{page_num + 1}页',
+                                'media_type': media_type
+                            })
+
+                            logger.debug(f"提取图片 #{len(images)}, 格式: {image_ext}, 位置: 第{page_num + 1}页")
+                    except Exception as e:
+                        logger.warning(f"提取PDF图片失败: {e}")
+        except Exception as e:
+            logger.error(f"提取PDF图片时发生错误: {e}")
+
+        return images
 
     def extract_keywords(self, text: str) -> List[str]:
         """提取关键词（简单版本）"""

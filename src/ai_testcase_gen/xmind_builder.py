@@ -112,33 +112,86 @@ class XMindBuilder:
             self._add_test_case(scenario_topic, test_case)
 
     def _add_test_case(self, parent_topic, test_case: Dict):
-        """添加测试用例节点"""
+        """添加测试用例节点 - 新版：支持 clear/assumed/clarify_needed"""
         case_topic = parent_topic.addSubTopic()
+
+        # 获取置信度（兼容旧版和新版）
+        confidence = test_case.get("confidence", "medium")
+
+        # 兼容旧版本的 confidence 值
+        confidence_map = {
+            "high": "clear",
+            "medium": "assumed",
+            "low": "clarify_needed"
+        }
+        confidence = confidence_map.get(confidence, confidence)
 
         # 设置标题
         title = test_case.get("title", "未命名用例")
-        confidence = test_case.get("confidence", "medium")
 
-        # 根据置信度添加标记
-        if confidence == "high":
-            title = f"✅ {title}"
-        elif confidence == "medium":
-            title = f"⚠️ {title}"
-        elif confidence == "low":
-            title = f"❌ {title}"
+        # 新的置信度标记系统
+        if confidence == "clear":
+            # 绿色 - 需求明确
+            icon = "✅"
+            label = "需求明确"
+        elif confidence == "assumed":
+            # 蓝色 - 基于假设
+            icon = "💡"
+            label = "基于假设"
+        elif confidence == "clarify_needed":
+            # 黄色 - 需要澄清
+            icon = "❓"
+            label = "建议澄清"
+        else:
+            # 默认
+            icon = "📝"
+            label = "待确认"
 
-        case_topic.setTitle(title)
+        case_topic.setTitle(f"{icon} {title}")
 
         # 添加详细信息作为备注
-        notes = self._build_case_notes(test_case)
+        notes = self._build_case_notes_v2(test_case, confidence)
         if notes:
             case_topic.setPlainNotes(notes)
 
         # 添加标签
-        if confidence == "low":
-            case_topic.addLabel("需人工补充")
-        elif confidence == "medium":
-            case_topic.addLabel("建议review")
+        case_topic.addLabel(label)
+
+        # 如果有假设，添加假设节点（支持字符串或数组）
+        assumptions = test_case.get("assumptions", [])
+        if assumptions and confidence == "assumed":
+            assumptions_topic = case_topic.addSubTopic()
+            assumptions_topic.setTitle("📌 测试假设")
+            if isinstance(assumptions, str):
+                # 字符串格式，按分号分隔
+                for assumption in assumptions.split(';'):
+                    assumption = assumption.strip()
+                    if assumption:
+                        assumption_item = assumptions_topic.addSubTopic()
+                        assumption_item.setTitle(f"▸ {assumption}")
+            else:
+                # 数组格式
+                for assumption in assumptions:
+                    assumption_item = assumptions_topic.addSubTopic()
+                    assumption_item.setTitle(f"▸ {assumption}")
+
+        # 如果需要澄清，添加缺失信息节点（支持字符串或数组）
+        missing_info = test_case.get("missing_info", [])
+        if missing_info and confidence == "clarify_needed":
+            missing_topic = case_topic.addSubTopic()
+            missing_topic.setTitle("❗ 需要澄清")
+            if isinstance(missing_info, str):
+                # 字符串格式，按分号分隔
+                for info in missing_info.split(';'):
+                    info = info.strip()
+                    if info:
+                        info_item = missing_topic.addSubTopic()
+                        info_item.setTitle(f"? {info}")
+            else:
+                # 数组格式
+                for info in missing_info:
+                    info_item = missing_topic.addSubTopic()
+                    info_item.setTitle(f"? {info}")
 
     def _get_color_by_confidence(self, confidence: str) -> Optional[str]:
         """根据置信度获取颜色"""
@@ -150,7 +203,7 @@ class XMindBuilder:
         return color_map.get(confidence)
 
     def _build_case_notes(self, test_case: Dict) -> str:
-        """构建测试用例备注信息"""
+        """构建测试用例备注信息（旧版，保留兼容性）"""
         notes_parts = []
 
         # 描述
@@ -163,11 +216,14 @@ class XMindBuilder:
         if preconditions:
             notes_parts.append(f"\n前置条件：{preconditions}")
 
-        # 测试步骤
+        # 测试步骤（支持字符串或数组）
         test_steps = test_case.get("test_steps", [])
         if test_steps:
-            steps_text = "\n".join([f"{i+1}. {step}" for i, step in enumerate(test_steps)])
-            notes_parts.append(f"\n测试步骤：\n{steps_text}")
+            if isinstance(test_steps, str):
+                notes_parts.append(f"\n测试步骤：{test_steps}")
+            else:
+                steps_text = "\n".join([f"{i+1}. {step}" for i, step in enumerate(test_steps)])
+                notes_parts.append(f"\n测试步骤：\n{steps_text}")
 
         # 预期结果
         expected_result = test_case.get("expected_result")
@@ -178,6 +234,66 @@ class XMindBuilder:
         confidence_reason = test_case.get("confidence_reason")
         if confidence_reason:
             notes_parts.append(f"\n置信度说明：{confidence_reason}")
+
+        return "\n".join(notes_parts)
+
+    def _build_case_notes_v2(self, test_case: Dict, confidence: str) -> str:
+        """构建测试用例备注信息（新版，支持假设和缺失信息）"""
+        notes_parts = []
+
+        # 描述
+        description = test_case.get("description")
+        if description:
+            notes_parts.append(f"📝 描述：{description}")
+
+        # 前置条件
+        preconditions = test_case.get("preconditions")
+        if preconditions:
+            notes_parts.append(f"\n🔧 前置条件：{preconditions}")
+
+        # 测试步骤（支持字符串或数组）
+        test_steps = test_case.get("test_steps", [])
+        if test_steps:
+            if isinstance(test_steps, str):
+                notes_parts.append(f"\n👣 测试步骤：{test_steps}")
+            else:
+                steps_text = "\n".join([f"  {i+1}. {step}" for i, step in enumerate(test_steps)])
+                notes_parts.append(f"\n👣 测试步骤：\n{steps_text}")
+
+        # 预期结果
+        expected_result = test_case.get("expected_result")
+        if expected_result:
+            notes_parts.append(f"\n✔️ 预期结果：{expected_result}")
+
+        # 置信度说明
+        confidence_reason = test_case.get("confidence_reason")
+        if confidence_reason:
+            notes_parts.append(f"\n💭 置信度说明：{confidence_reason}")
+
+        # 如果基于假设，显示假设内容（支持字符串或数组）
+        if confidence == "assumed":
+            assumptions = test_case.get("assumptions", [])
+            if assumptions:
+                if isinstance(assumptions, str):
+                    notes_parts.append(f"\n💡 测试假设：{assumptions}")
+                else:
+                    assumptions_text = "\n".join([f"  ▸ {a}" for a in assumptions])
+                    notes_parts.append(f"\n💡 测试假设：\n{assumptions_text}")
+
+        # 如果需要澄清，显示缺失信息（支持字符串或数组）
+        if confidence == "clarify_needed":
+            missing_info = test_case.get("missing_info", [])
+            if missing_info:
+                if isinstance(missing_info, str):
+                    notes_parts.append(f"\n❓ 需要澄清：{missing_info}")
+                else:
+                    missing_text = "\n".join([f"  ? {m}" for m in missing_info])
+                    notes_parts.append(f"\n❓ 需要澄清：\n{missing_text}")
+
+        # 参考的行业惯例
+        reference_practice = test_case.get("reference_practice")
+        if reference_practice:
+            notes_parts.append(f"\n📚 参考惯例：{reference_practice}")
 
         return "\n".join(notes_parts)
 

@@ -22,6 +22,20 @@ class AIServiceBase(ABC):
         """生成JSON格式输出"""
         pass
 
+    def analyze_image(self, image_data: str, prompt: str, media_type: str = "image/jpeg", **kwargs) -> str:
+        """
+        分析图片内容(可选实现,不是所有AI服务都支持视觉)
+
+        Args:
+            image_data: base64编码的图片数据
+            prompt: 分析提示词
+            media_type: 图片MIME类型
+
+        Returns:
+            AI对图片的描述
+        """
+        return f"[此AI服务不支持图片分析]"
+
 
 class OpenAIService(AIServiceBase):
     """OpenAI服务"""
@@ -35,7 +49,7 @@ class OpenAIService(AIServiceBase):
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
-    def generate(self, prompt: str, temperature: float = 0.3, max_tokens: int = 8000, max_retries: int = 3) -> str:
+    def generate(self, prompt: str, temperature: float = 0.3, max_tokens: int = 8000, max_retries: int = 3, timeout: float = 180.0) -> str:
         """
         生成文本（带重试机制）
 
@@ -44,6 +58,7 @@ class OpenAIService(AIServiceBase):
             temperature: 温度参数（0-1），越低越确定
             max_tokens: 最大token数
             max_retries: 最大重试次数
+            timeout: API 调用超时时间（秒），默认 180 秒
 
         Returns:
             生成的文本
@@ -59,7 +74,8 @@ class OpenAIService(AIServiceBase):
                         {"role": "user", "content": prompt}
                     ],
                     temperature=temperature,
-                    max_tokens=max_tokens
+                    max_tokens=max_tokens,
+                    timeout=timeout  # 添加超时设置
                 )
                 return response.choices[0].message.content
             except Exception as e:
@@ -91,13 +107,23 @@ class OpenAIService(AIServiceBase):
 
             # 保存原始响应到文件用于调试
             import os
-            debug_file = os.path.join(os.getcwd(), "debug_ai_response.txt")
+            import time
+            timestamp = int(time.time())
+            debug_file = os.path.join(os.getcwd(), f"debug_ai_response_{timestamp}.txt")
             with open(debug_file, "w", encoding="utf-8") as f:
                 f.write("=== 原始AI响应 ===\n")
                 f.write(response_text)
                 f.write("\n\n=== 提取的JSON ===\n")
                 f.write(json_text)
             logger.error(f"原始响应已保存到: {debug_file}")
+
+            # 也保存一份到固定文件名（向后兼容）
+            debug_file_fixed = os.path.join(os.getcwd(), "debug_ai_response.txt")
+            with open(debug_file_fixed, "w", encoding="utf-8") as f:
+                f.write("=== 原始AI响应 ===\n")
+                f.write(response_text)
+                f.write("\n\n=== 提取的JSON ===\n")
+                f.write(json_text)
 
             raise ValueError(f"AI返回的JSON格式有误: {e}")
 
@@ -106,6 +132,17 @@ class OpenAIService(AIServiceBase):
         # 移除markdown代码块标记
         text = text.strip()
 
+        # 移除开头的 "```json" 标记
+        if text.startswith("```json"):
+            text = text[7:].strip()
+        elif text.startswith("```"):
+            text = text[3:].strip()
+
+        # 移除结尾的 "```" 标记
+        if text.endswith("```"):
+            text = text[:-3].strip()
+
+        # 如果仍然有代码块标记，尝试提取
         if "```json" in text:
             start = text.find("```json") + 7
             end = text.find("```", start)
@@ -116,12 +153,14 @@ class OpenAIService(AIServiceBase):
             end = text.find("```", start)
             if end != -1:
                 text = text[start:end].strip()
-        else:
-            # 尝试找到JSON对象的开始和结束
+
+        # 最后尝试提取 JSON 对象
+        if not text.startswith("{"):
             start = text.find("{")
-            end = text.rfind("}") + 1
-            if start != -1 and end > start:
-                text = text[start:end]
+            if start != -1:
+                end = text.rfind("}") + 1
+                if end > start:
+                    text = text[start:end]
 
         # 清理JSON格式错误
         text = self._cleanup_json(text)
@@ -132,14 +171,18 @@ class OpenAIService(AIServiceBase):
         import re
 
         # 1. 移除数组或对象最后一个元素后的多余逗号
-        # 匹配 ,] 或 ,} 的情况
         json_str = re.sub(r',(\s*[\]}])', r'\1', json_str)
 
         # 2. 修复中文引号为英文引号
         json_str = json_str.replace('"', '"').replace('"', '"')
         json_str = json_str.replace(''', "'").replace(''', "'")
 
-        # 3. 移除多余的控制字符
+        # 3. 修复JSON字符串值内部的转义引号
+        # AI经常在字符串值中使用 \" 来表示引号,这会破坏JSON结构
+        # 简单策略: 直接替换所有 \" 为单引号
+        json_str = json_str.replace('\\"', "'")
+
+        # 4. 移除多余的控制字符
         json_str = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', json_str)
 
         return json_str
@@ -184,6 +227,9 @@ class ClaudeService(AIServiceBase):
                         {"role": "user", "content": prompt}
                     ]
                 )
+                # 检查是否因为token限制被截断
+                if hasattr(response, 'stop_reason') and response.stop_reason == 'max_tokens':
+                    logger.warning(f"Claude响应因达到max_tokens({max_tokens})而被截断，建议增加max_tokens或简化prompt")
                 return response.content[0].text
             except Exception as e:
                 error_msg = str(e)
@@ -214,7 +260,9 @@ class ClaudeService(AIServiceBase):
 
             # 保存原始响应到文件用于调试
             import os
-            debug_file = os.path.join(os.getcwd(), "debug_ai_response.txt")
+            import time
+            timestamp = int(time.time())
+            debug_file = os.path.join(os.getcwd(), f"debug_ai_response_{timestamp}.txt")
             with open(debug_file, "w", encoding="utf-8") as f:
                 f.write("=== 原始AI响应 ===\n")
                 f.write(response_text)
@@ -222,12 +270,31 @@ class ClaudeService(AIServiceBase):
                 f.write(json_text)
             logger.error(f"原始响应已保存到: {debug_file}")
 
+            # 也保存一份到固定文件名（向后兼容）
+            debug_file_fixed = os.path.join(os.getcwd(), "debug_ai_response.txt")
+            with open(debug_file_fixed, "w", encoding="utf-8") as f:
+                f.write("=== 原始AI响应 ===\n")
+                f.write(response_text)
+                f.write("\n\n=== 提取的JSON ===\n")
+                f.write(json_text)
+
             raise ValueError(f"AI返回的JSON格式有误: {e}")
 
     def _extract_json(self, text: str) -> str:
         """从文本中提取JSON部分并清理常见错误"""
         text = text.strip()
 
+        # 移除开头的 "```json" 标记
+        if text.startswith("```json"):
+            text = text[7:].strip()
+        elif text.startswith("```"):
+            text = text[3:].strip()
+
+        # 移除结尾的 "```" 标记
+        if text.endswith("```"):
+            text = text[:-3].strip()
+
+        # 如果仍然有代码块标记，尝试提取
         if "```json" in text:
             start = text.find("```json") + 7
             end = text.find("```", start)
@@ -238,11 +305,14 @@ class ClaudeService(AIServiceBase):
             end = text.find("```", start)
             if end != -1:
                 text = text[start:end].strip()
-        else:
+
+        # 最后尝试提取 JSON 对象
+        if not text.startswith("{"):
             start = text.find("{")
-            end = text.rfind("}") + 1
-            if start != -1 and end > start:
-                text = text[start:end]
+            if start != -1:
+                end = text.rfind("}") + 1
+                if end > start:
+                    text = text[start:end]
 
         # 清理JSON格式错误
         text = self._cleanup_json(text)
@@ -253,17 +323,63 @@ class ClaudeService(AIServiceBase):
         import re
 
         # 1. 移除数组或对象最后一个元素后的多余逗号
-        # 匹配 ,] 或 ,} 的情况
         json_str = re.sub(r',(\s*[\]}])', r'\1', json_str)
 
         # 2. 修复中文引号为英文引号
         json_str = json_str.replace('"', '"').replace('"', '"')
         json_str = json_str.replace(''', "'").replace(''', "'")
 
-        # 3. 移除多余的控制字符
+        # 3. 修复JSON字符串值内部的转义引号
+        # AI经常在字符串值中使用 \" 来表示引号,这会破坏JSON结构
+        # 简单策略: 直接替换所有 \" 为单引号
+        json_str = json_str.replace('\\"', "'")
+
+        # 4. 移除多余的控制字符
         json_str = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', json_str)
 
         return json_str
+
+    def analyze_image(self, image_data: str, prompt: str, media_type: str = "image/jpeg", **kwargs) -> str:
+        """
+        使用Claude Vision API分析图片
+
+        Args:
+            image_data: base64编码的图片数据
+            prompt: 分析提示词
+            media_type: 图片MIME类型
+
+        Returns:
+            AI对图片的描述
+        """
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=2000,
+                temperature=0.3,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": image_data,
+                                },
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ],
+                    }
+                ],
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Claude图片分析失败: {e}")
+            return f"[图片分析失败: {str(e)}]"
 
 
 class AIServiceFactory:

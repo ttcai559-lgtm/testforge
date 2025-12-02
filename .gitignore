@@ -32,6 +32,30 @@ environments/*.yml
 !environments/.gitkeep
 !environments/example_dev.yaml
 
+# Outputs and logs
+outputs/*.xmind
+outputs/*.json
+logs/*.log
+reports/*.html
+reports/*.json
+uploads/*.docx
+uploads/*.xlsx
+uploads/*.pdf
+
+# Test files
+test_*.py
+test_*.log
+debug_*.txt
+debug_*.log
+*_temp.py
+quick_test.py
+
+# Temporary files
+*.tmp
+*.xml
+nul
+temp_*
+
 # OS
 .DS_Store
 Thumbs.db

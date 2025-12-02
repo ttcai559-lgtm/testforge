@@ -30,8 +30,12 @@ from src.storage import YAMLStorage, EnvironmentStorage
 # 导入AI测试用例生成模块
 try:
     from src.ai_testcase_gen.generator import TestCaseGenerator
+    from src.ai_testcase_gen.file_cleanup import FileCleanup
+    from src.ai_testcase_gen.config import FILE_RETENTION_DAYS
 except ImportError:
     TestCaseGenerator = None
+    FileCleanup = None
+    FILE_RETENTION_DAYS = 7
 
 app = FastAPI(title="TestForge API", version="1.0.0")
 
@@ -502,7 +506,8 @@ async def generate_testcases(
     file: UploadFile = File(...),
     ai_model: str = "claude",
     enable_defect_detection: bool = True,
-    enable_question_generation: bool = True
+    enable_question_generation: bool = True,
+    enable_image_analysis: bool = True
 ):
     """
     AI测试用例生成接口
@@ -548,7 +553,8 @@ async def generate_testcases(
         result = generator.generate(
             document_path=str(file_path),
             enable_defect_detection=enable_defect_detection,
-            enable_question_generation=enable_question_generation
+            enable_question_generation=enable_question_generation,
+            enable_image_analysis=enable_image_analysis
         )
 
         # 计算耗时
@@ -564,7 +570,7 @@ async def generate_testcases(
 
         # 返回结果
         summary = result.get("summary", result.get("statistics", {}))
-        return {
+        response_data = {
             "success": True,
             "xmind_filename": xmind_filename,
             "download_url": f"/api/ai/download/{xmind_filename}",
@@ -578,6 +584,23 @@ async def generate_testcases(
             }
         }
 
+        # 成功后执行自动清理（异步，不影响响应）
+        if FileCleanup:
+            try:
+                cleaner = FileCleanup(upload_dir=str(upload_dir), retention_days=FILE_RETENTION_DAYS)
+                cleanup_result = cleaner.cleanup_old_files()
+                if cleanup_result['deleted_count'] > 0:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"自动清理完成: 删除 {cleanup_result['deleted_count']} 个过期文件，释放 {cleanup_result['total_size_freed'] / (1024*1024):.2f} MB")
+            except Exception as cleanup_error:
+                # 清理失败不影响主流程，只记录日志
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"自动清理失败: {cleanup_error}")
+
+        return response_data
+
     except Exception as e:
         # 清理上传的文件
         if file_path.exists():
@@ -590,7 +613,8 @@ async def generate_testcases_stream(
     file: UploadFile = File(...),
     ai_model: str = "claude",
     enable_defect_detection: bool = True,
-    enable_question_generation: bool = True
+    enable_question_generation: bool = True,
+    enable_image_analysis: bool = True
 ):
     """
     AI测试用例生成接口 (流式响应版本)
@@ -658,7 +682,8 @@ async def generate_testcases_stream(
                     result = generator.generate(
                         document_path=str(file_path),
                         enable_defect_detection=enable_defect_detection,
-                        enable_question_generation=enable_question_generation
+                        enable_question_generation=enable_question_generation,
+                        enable_image_analysis=enable_image_analysis
                     )
                     result_container['result'] = result
                 except Exception as e:
@@ -726,6 +751,21 @@ async def generate_testcases_stream(
                 }
             }
             yield f"data: {json.dumps(final_data, ensure_ascii=False)}\n\n"
+
+            # 成功后执行自动清理（异步，不影响响应）
+            if FileCleanup:
+                try:
+                    cleaner = FileCleanup(upload_dir=str(upload_dir), retention_days=FILE_RETENTION_DAYS)
+                    cleanup_result = cleaner.cleanup_old_files()
+                    if cleanup_result['deleted_count'] > 0:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.info(f"自动清理完成: 删除 {cleanup_result['deleted_count']} 个过期文件，释放 {cleanup_result['total_size_freed'] / (1024*1024):.2f} MB")
+                except Exception as cleanup_error:
+                    # 清理失败不影响主流程，只记录日志
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"自动清理失败: {cleanup_error}")
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"

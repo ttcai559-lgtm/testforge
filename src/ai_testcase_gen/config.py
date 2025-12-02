@@ -23,7 +23,7 @@ except ImportError:
 AI_MODEL_TYPE = Literal["openai", "claude", "wenxin", "qianwen"]
 
 # 默认使用的模型
-DEFAULT_AI_MODEL: AI_MODEL_TYPE = "openai"
+DEFAULT_AI_MODEL: AI_MODEL_TYPE = "claude"  # 使用 Claude API
 
 # OpenAI配置
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -128,6 +128,9 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # 上传文件存储路径
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 OUTPUT_DIR = os.path.join(os.getcwd(), "outputs")
+
+# 临时文件自动清理配置
+FILE_RETENTION_DAYS = int(os.getenv("FILE_RETENTION_DAYS", "7"))  # 默认保留7天
 
 # 确保目录存在
 os.makedirs(UPLOAD_DIR, exist_ok=True)
