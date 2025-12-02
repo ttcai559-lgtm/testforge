@@ -41,6 +41,8 @@ reports/*.json
 uploads/*.docx
 uploads/*.xlsx
 uploads/*.pdf
+uploads/*.xmind
+uploads/*.json
 
 # Test files
 test_*.py
@@ -49,12 +51,20 @@ debug_*.txt
 debug_*.log
 *_temp.py
 quick_test.py
+file_cleanup.py
 
 # Temporary files
 *.tmp
 *.xml
 nul
 temp_*
+
+# Local test data and docs
+docs/
+uploads/
+src/ai_testcase_gen/uploads/test2.docx
+src/ai_testcase_gen/uploads/*.xmind
+src/ai_testcase_gen/file_cleanup.py
 
 # OS
 .DS_Store
