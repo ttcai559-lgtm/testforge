@@ -1,0 +1,673 @@
+[
+  {
+    "id": "scn_1765258631402",
+    "name": "虎扑",
+    "type": "functional",
+    "environment": "虎扑",
+    "description": "压测",
+    "config": {
+      "steps": [
+        {
+          "name": "虎扑",
+          "testcase": "虎扑_20251127_164018.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://test.adprod.cn/adx/router/V100/hupu",
+            "headers": {
+              "Content-Type": "application/x-protobuf"
+            },
+            "body": {
+              "app": {
+                "bundle": "com.hupu.games",
+                "content": "虎扑是一个认真而有趣的社区，每天有千万 JRs 在虎扑分享自己对篮球、足球、王者荣耀、英雄联盟、影视、汽车、数码等一切人和事的见解，热闹、真实、有温度。",
+                "name": "虎扑App",
+                "version": "8.2.8"
+              },
+              "device": {
+                "aaid": "5AF3E0CB-2969-AA1E-EFE0-92A44DC5276D",
+                "ag_version": "-1",
+                "androidid": "0b0b42e767a9de0c",
+                "boot_mark": "0",
+                "boot_mark_ali": "cc5c1784-8255-401d-8ca7-6318574e8cb9",
+                "carrier": "CHINA_MOBILE",
+                "connectiontype": "WIFI",
+                "density": "2.75",
+                "device_file_time": "0",
+                "device_name_md5": "87AED87A0A2BB50CF0F90553D0E628E8",
+                "device_start_sec": "0",
+                "dpi": "2.75",
+                "harddisk_size_byte": "240731009024",
+                "hardware_machine": "TKQ1.221114.001",
+                "hms_version": "-1",
+                "ip": "172.16.48.243",
+                "language": "zh-CN",
+                "logicNum": "101",
+                "make": "Xiaomi",
+                "mi_store_version": "40005920",
+                "miui_version": "V14.0.27.0.TMRCNXM",
+                "model": "23049RAD8C",
+                "oaid": "952f63f64ec72c44",
+                "oppo_store_version": -1,
+                "os": "ios",
+                "osv": "13",
+                "physical_memory_byte": "11719028736",
+                "screenheight": 2262,
+                "screenwidth": 1080,
+                "time_zone": "28800",
+                "ua": "Mozilla/5.0 (Linux; Android 13; 23049RAD8C Build/TKQ1.221114.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/135.0.7049.111 Mobile Safari/537.36",
+                "update_mark": "1749540347.78774272",
+                "update_mark_ali": "1749540347.78774272",
+                "vivo_store_version": -1
+              },
+              "id": "5dc01c79987842ceaa0e0b30f0f45caf",
+              "imp": [
+                {
+                  "bidfloor": "1",
+                  "id": 1,
+                  "native_standard": {
+                    "image_standard": {
+                      "h": 1244,
+                      "mimes": [
+                        "image/jpg",
+                        "image/png"
+                      ],
+                      "w": 750
+                    }
+                  },
+                  "pmp": {
+                    "deals": [
+                      {
+                        "at": 1,
+                        "bidfloor": "1",
+                        "id": "1763515956620"
+                      }
+                    ]
+                  },
+                  "pt": "SPLASH",
+                  "trade_mode": "RTB"
+                }
+              ],
+              "user": {
+                "id": "0b0b42e767a9de0c"
+              }
+            },
+            "environment": "虎扑",
+            "request_message_type": "BidRequest",
+            "response_message_type": "BidResponse"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "success",
+    "created_at": "2025-12-09T05:37:11.402104+00:00",
+    "updated_at": "2025-12-10T03:48:18.829542+00:00",
+    "last_run_at": "2025-12-10T03:48:18.829542+00:00"
+  },
+  {
+    "id": "scn_1765268486920",
+    "name": "杭州互裕",
+    "type": "functional",
+    "environment": "杭州互裕",
+    "description": null,
+    "config": {
+      "steps": [
+        {
+          "name": "杭州互裕",
+          "testcase": "New Request_20251127_111519.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://test.adprod.cn/adx/router/V100/channel/hangzhouhuyu",
+            "headers": {
+              "1": "2"
+            },
+            "body": {
+              "app": {
+                "bundle": "com.bbk.appstore2",
+                "id": "c757fe0a",
+                "version": "8.0.0"
+              },
+              "device": {
+                "connectionType": 1,
+                "deviceType": 2,
+                "h": 1280,
+                "idfa": "775c236c3f2313686",
+                "ip": "120.198.236.255",
+                "js": 0,
+                "make": "xiaomi",
+                "model": "14",
+                "oaId": "37693cfc748049e45d87b8c7d8b9aac1",
+                "os": "2",
+                "osv": "12",
+                "ppi": 1280,
+                "ua": "Mozilla/5.0 (Linux; Android 12; TAS-AL00 Build/HUAWEITAS-AL00; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.105 Mobile Safari/537.36",
+                "w": 720
+              },
+              "id": "d9436a1b-c332-4b75-aba8-6e495dedd752",
+              "imp": [
+                {
+                  "admType": "3",
+                  "bidInfoList": [
+                    {
+                      "bidFloor": 1,
+                      "billingType": 1
+                    }
+                  ],
+                  "flowConfig": [],
+                  "id": "1",
+                  "inStl": "0",
+                  "reqadnum": 1,
+                  "tagId": "hzhy.kp.and",
+                  "templateList": [
+                    {
+                      "targetTypeStr": "2",
+                      "yoyoTemplateId": "3.1.1"
+                    },
+                    {
+                      "targetTypeStr": "3",
+                      "yoyoTemplateId": "1.2.1"
+                    },
+                    {
+                      "targetTypeStr": "3",
+                      "yoyoTemplateId": "1.5.1"
+                    }
+                  ]
+                }
+              ],
+              "timeout": 500
+            },
+            "environment": "杭州互裕"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "idle",
+    "created_at": "2025-12-09T08:21:26.920916+00:00",
+    "updated_at": "2025-12-09T08:21:26.920916+00:00",
+    "last_run_at": null
+  },
+  {
+    "id": "scn_1765268493454",
+    "name": "努比亚",
+    "type": "functional",
+    "environment": "努比亚",
+    "description": null,
+    "config": {
+      "steps": [
+        {
+          "name": "努比亚",
+          "testcase": "New Request_20251127_114213.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://nubia-test.taopb.com/adx/ssp/nubia",
+            "headers": {
+              "Content-Type": "application/x-protobuf"
+            },
+            "body": {
+              "api_version": "3.0.0",
+              "app": {
+                "bundle": "cn.nubia.security2",
+                "cat": [
+                  "20402"
+                ],
+                "id": "1_73",
+                "keywords": "手机管家",
+                "name": "手机管家",
+                "ver": "4.5.0"
+              },
+              "client_id": "aM3E4g 7A93Kcr6PCjvERQ==",
+              "cuid": "56C3C916B8714A0EAA28D5E8F25C1288",
+              "device": {
+                "avail_memory": 0,
+                "battery": 0,
+                "carrier": "0",
+                "connectiontype": "WIFI",
+                "cpu_abi": "arm64-v8a",
+                "cpu_arch": "ABI_64",
+                "devicetype": "PHONE",
+                "didmd5": "6260vaid8694650221020061111705",
+                "dpidmd5": "2d8e9c847b3a2b2d89a36aae0169f39f",
+                "geo": {
+                  "lat": -1,
+                  "lon": -1,
+                  "type": "GPS_LOCATION"
+                },
+                "h": 1920,
+                "imei": "869465022102056785",
+                "ip": "192.168.199.151",
+                "macmd5": "dde3d7ca453bea304cd07daad1c56fc8",
+                "make": "NUBIA",
+                "model": "NX666J",
+                "oaid": "6260c2798dc5fb78dd27d6ef540de5b10b1c08d8c96e6aa485d136590329e7d05",
+                "os": "Android",
+                "osv": "12",
+                "ppi": 480,
+                "ua": "Mozilla/5.0 (Linux; Android 7.1.1; NX666J Build/NMF26F; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/56.0.2924.87 Mobile Safari/537.36",
+                "vaid": "6260vaid8694650221020061111705",
+                "w": 1080,
+                "wx_api_ver": "",
+                "wx_open_sdk_ver": ""
+              },
+              "from": "api",
+              "id": "38371381ace542d2b901f15ebc47a34d",
+              "imp": [
+                {
+                  "ad_type": 8,
+                  "adslot_config": "{\"config\":{},\"posConfig\":{}}",
+                  "banner": {
+                    "battr": [
+                      "IMG_ONLY"
+                    ],
+                    "h": 100,
+                    "pos": "UNKNOWN",
+                    "w": 640
+                  },
+                  "bidfloor": 0,
+                  "bidfloorcur": "CNY",
+                  "id": "1_1",
+                  "instl": 0,
+                  "is_lock_screen": 0,
+                  "is_splash_screen": 0,
+                  "tagid": "6260"
+                }
+              ],
+              "os_level": "23",
+              "recommend": [
+                {
+                  "bundle": "com.taobao.taobao",
+                  "version_code": 20,
+                  "version_name": "3.1.4"
+                }
+              ],
+              "sn": "SSP_SDK",
+              "svr": "1.52.0",
+              "token_id": "",
+              "user": {
+                "data": [
+                  {
+                    "name": "age",
+                    "segment": [
+                      {
+                        "name": "age",
+                        "value": "children"
+                      },
+                      {
+                        "name": "age",
+                        "value": "juvenile"
+                      },
+                      {
+                        "name": "age",
+                        "value": "youth"
+                      },
+                      {
+                        "name": "age",
+                        "value": "midlife"
+                      },
+                      {
+                        "name": "age",
+                        "value": "agedness"
+                      }
+                    ]
+                  }
+                ],
+                "gender": "O",
+                "id": "6260c2798dc5fb78dd27d6ef540de5b10b1c08d8c96e6aa485d136590329e7d05"
+              }
+            },
+            "environment": "努比亚",
+            "request_message_type": "BidRequest",
+            "response_message_type": "BidResponse"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "idle",
+    "created_at": "2025-12-09T08:21:33.454245+00:00",
+    "updated_at": "2025-12-09T08:21:33.454245+00:00",
+    "last_run_at": null
+  },
+  {
+    "id": "scn_1765268499125",
+    "name": "vivo",
+    "type": "functional",
+    "environment": "vivo",
+    "description": null,
+    "config": {
+      "steps": [
+        {
+          "name": "vivo",
+          "testcase": "New Request_20251127_110835.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://test.adprod.cn/adx/router/V100/vivo",
+            "headers": {
+              "Content-Type": "application/x-protobuf"
+            },
+            "body": {
+              "app": {
+                "bundle": "com.vivo.hiboard",
+                "media_type": 1
+              },
+              "at": 2,
+              "bcat": [
+                10091,
+                10092,
+                10095,
+                10094
+              ],
+              "bcat_v2": [
+                2220120,
+                220129,
+                2220122,
+                2220265,
+                2220264,
+                2220124,
+                2220123,
+                220121
+              ],
+              "crowd_package_ids": [
+                7788
+              ],
+              "crowd_status": 1,
+              "device": {
+                "connection_type": 100,
+                "ip": "27.222.196.169",
+                "make": "vivo",
+                "model": "vivo Y100i",
+                "net_type": 2,
+                "oaid": "336e96677b6105647299407dcc26db3a695586bd9c183c3a4087f73bb4e4512a",
+                "os": "Android",
+                "ostatus": 1,
+                "osv": "13",
+                "ua": "Dalvik/2.1.0 (Linux; U; Android 13; V2279A Build/TP1A.220624.014)"
+              },
+              "id": "1742380151599_07d78526b6da4e7b892421cbbea682c4",
+              "imp": [
+                {
+                  "ad_styles": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    80,
+                    81,
+                    11,
+                    110
+                  ],
+                  "ad_type": 1,
+                  "ads_count": 3,
+                  "bid_floor": 0,
+                  "bid_types": [
+                    0,
+                    1
+                  ],
+                  "deeplink": true,
+                  "dld": true,
+                  "flow_pkg_ids": [
+                    112
+                  ],
+                  "h5_dld": true,
+                  "id": 1,
+                  "pkg_blacklist": [],
+                  "pkg_whitelist": [
+                    "com.taobao.taobao",
+                    "com.taobao.taobao1",
+                    "com.taobao.taobao2"
+                  ],
+                  "source_type": 1,
+                  "support_deeplink": 1,
+                  "tag_id": "cb5827354e0447a9a38c42c71dfd7e44",
+                  "template_ids": [
+                    110001
+                  ]
+                }
+              ],
+              "installed_app_ids": [
+                "f5036ab2353b11b9808646644f71d994",
+                "c0fae032cde318c6c9e427c310dd0d4b",
+                "6a2a724aefe38fca419ed513130cfbdb"
+              ],
+              "installed_app_status": 1,
+              "query": "搜索词",
+              "timeout": 500,
+              "ver": 1
+            },
+            "environment": "vivo",
+            "request_message_type": "BidRequest",
+            "response_message_type": "BidResponse"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "idle",
+    "created_at": "2025-12-09T08:21:39.125627+00:00",
+    "updated_at": "2025-12-09T08:21:39.125627+00:00",
+    "last_run_at": null
+  },
+  {
+    "id": "scn_1765268504493",
+    "name": "倍孜",
+    "type": "functional",
+    "environment": "倍孜",
+    "description": null,
+    "config": {
+      "steps": [
+        {
+          "name": "倍孜",
+          "testcase": "倍孜_20251127_113357.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://test.adprod.cn/adx/router/V100/beizi",
+            "headers": {
+              "Content-Type": "application/x-protobuf"
+            },
+            "body": {
+              "app": {
+                "bundle": "com.qiaoan.qiaoanzhilian",
+                "id": "8",
+                "name": "8",
+                "version": "3.3.5"
+              },
+              "device": {
+                "bootMark": "1664187939.908289",
+                "carrier": 2,
+                "connectionType": 6,
+                "deviceType": 4,
+                "h": 2778,
+                "harddiskSize": "127877271552",
+                "ifa": "ifa",
+                "ip": "125.45.172.144",
+                "lang": "zh-Hans",
+                "make": "OPPO",
+                "model": "OPPO A7n",
+                "oaid": "AC0D016EC3D94343A2DD4431CC60B5C3eed7df67ccd7f2e6d83b42b6e2182ca1",
+                "os": "ios",
+                "osv": "10.1.1",
+                "physicalMemory": "5899534336",
+                "pxratio": 3,
+                "sdkuid": "02e427aa64ff80931bb4cb723bf5cbd2_1_3929_85323085",
+                "ua": "Mozilla/5.0 (Linux; Android 13; CPH2375 Build/TP1A.220905.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/110.0.5481.65 Mobile Safari/537.36",
+                "updateMark": "1632796423.515908416",
+                "w": 1284
+              },
+              "id": "10127-0a85070b-eab9-4907-bd5b-18df0a456bd0",
+              "imp": [
+                {
+                  "SupportAction": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                  ],
+                  "adType": 1,
+                  "at": 2,
+                  "bidfloor": 1,
+                  "fullScreen": 0,
+                  "h": 1280,
+                  "id": "10127-24a4214d-e89b-4c69-a004-31614eb7f65a",
+                  "placeID": "37",
+                  "repeat": 1,
+                  "screenDir": 0,
+                  "templateID": [
+                    "image-21"
+                  ],
+                  "w": 720
+                }
+              ],
+              "ver": "1.0"
+            },
+            "environment": "倍孜",
+            "request_message_type": "BidRequest",
+            "response_message_type": "BidResponse"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "idle",
+    "created_at": "2025-12-09T08:21:44.493730+00:00",
+    "updated_at": "2025-12-09T08:21:44.493730+00:00",
+    "last_run_at": null
+  },
+  {
+    "id": "scn_1765268515550",
+    "name": "虎扑2",
+    "type": "functional",
+    "environment": "虎扑",
+    "description": null,
+    "config": {
+      "steps": [
+        {
+          "name": "虎扑2",
+          "testcase": "虎扑_20251127_164018.yaml",
+          "sync_testcase": false,
+          "request": {
+            "method": "POST",
+            "url": "http://test.adprod.cn/adx/router/V100/hupu",
+            "headers": {
+              "Content-Type": "application/x-protobuf"
+            },
+            "body": {
+              "app": {
+                "bundle": "com.hupu.games",
+                "content": "虎扑是一个认真而有趣的社区，每天有千万 JRs 在虎扑分享自己对篮球、足球、王者荣耀、英雄联盟、影视、汽车、数码等一切人和事的见解，热闹、真实、有温度。",
+                "name": "虎扑App",
+                "version": "8.2.8"
+              },
+              "device": {
+                "aaid": "5AF3E0CB-2969-AA1E-EFE0-92A44DC5276D",
+                "ag_version": "-1",
+                "androidid": "0b0b42e767a9de0c",
+                "boot_mark": "0",
+                "boot_mark_ali": "cc5c1784-8255-401d-8ca7-6318574e8cb9",
+                "carrier": "CHINA_MOBILE",
+                "connectiontype": "WIFI",
+                "density": "2.75",
+                "device_file_time": "0",
+                "device_name_md5": "87AED87A0A2BB50CF0F90553D0E628E8",
+                "device_start_sec": "0",
+                "dpi": "2.75",
+                "harddisk_size_byte": "240731009024",
+                "hardware_machine": "TKQ1.221114.001",
+                "hms_version": "-1",
+                "ip": "172.16.48.243",
+                "language": "zh-CN",
+                "logicNum": "101",
+                "make": "Xiaomi",
+                "mi_store_version": "40005920",
+                "miui_version": "V14.0.27.0.TMRCNXM",
+                "model": "23049RAD8C",
+                "oaid": "952f63f64ec72c44",
+                "oppo_store_version": -1,
+                "os": "ios",
+                "osv": "13",
+                "physical_memory_byte": "11719028736",
+                "screenheight": 2262,
+                "screenwidth": 1080,
+                "time_zone": "28800",
+                "ua": "Mozilla/5.0 (Linux; Android 13; 23049RAD8C Build/TKQ1.221114.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/135.0.7049.111 Mobile Safari/537.36",
+                "update_mark": "1749540347.78774272",
+                "update_mark_ali": "1749540347.78774272",
+                "vivo_store_version": -1
+              },
+              "id": "5dc01c79987842ceaa0e0b30f0f45caf",
+              "imp": [
+                {
+                  "bidfloor": "1",
+                  "id": 1,
+                  "native_standard": {
+                    "image_standard": {
+                      "h": 1244,
+                      "mimes": [
+                        "image/jpg",
+                        "image/png"
+                      ],
+                      "w": 750
+                    }
+                  },
+                  "pmp": {
+                    "deals": [
+                      {
+                        "at": 1,
+                        "bidfloor": "1",
+                        "id": "1763515956620"
+                      }
+                    ]
+                  },
+                  "pt": "SPLASH",
+                  "trade_mode": "RTB"
+                }
+              ],
+              "user": {
+                "id": "0b0b42e767a9de0c"
+              }
+            },
+            "environment": "虎扑",
+            "request_message_type": "BidRequest",
+            "response_message_type": "BidResponse"
+          },
+          "assertions": [
+            "status == 200"
+          ]
+        }
+      ],
+      "pre_scripts": [],
+      "post_scripts": []
+    },
+    "status": "idle",
+    "created_at": "2025-12-09T08:21:55.550399+00:00",
+    "updated_at": "2025-12-09T08:21:55.550399+00:00",
+    "last_run_at": null
+  }
+]

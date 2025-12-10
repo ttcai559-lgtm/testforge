@@ -10,13 +10,14 @@ TestForge - FastAPI Backend
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any, List, Literal
 import sys
 import os
 import shutil
 import json
 import asyncio
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -26,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.protocols import HTTPHandler, ProtobufHandler
 from src.core import AssertionEngine, AssertionResult
 from src.storage import YAMLStorage, EnvironmentStorage
+from src.api.pressure_storage import PressureStorage
 
 # 导入AI测试用例生成模块
 try:
@@ -54,6 +56,7 @@ protobuf_handler = ProtobufHandler("./proto_files", "./compiled_protos")
 assertion_engine = AssertionEngine()
 storage = YAMLStorage("./testcases")
 env_storage = EnvironmentStorage("./environments")
+pressure_storage = PressureStorage(Path(__file__).parent / "pressure_data")
 
 
 # ==================== Pydantic Models ====================
@@ -106,6 +109,319 @@ class EnvironmentRequest(BaseModel):
     default_params: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
     protocol: Optional[str] = "json"  # "json" or "protobuf"
+
+
+class PressureRequestPayload(BaseModel):
+    method: Optional[str] = None
+    url: Optional[str] = None
+    headers: Optional[Dict[str, Any]] = None
+    params: Optional[Dict[str, Any]] = None
+    body: Optional[Any] = None
+    environment: Optional[str] = None
+    request_message_type: Optional[str] = None
+    response_message_type: Optional[str] = None
+
+
+class PressureScenarioStep(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    testcase: Optional[str] = None
+    sync_testcase: bool = False
+    request: PressureRequestPayload = Field(default_factory=PressureRequestPayload)
+    assertions: List[str] = Field(default_factory=list)
+
+
+class PerformanceSettings(BaseModel):
+    script_type: Optional[str] = "locust"
+    virtual_users: Optional[int] = 50
+    duration_seconds: Optional[int] = 300
+    ramp_up_seconds: Optional[int] = 60
+    target_rps: Optional[int] = 1000
+    notes: Optional[str] = None
+
+
+class PressureScenarioConfig(BaseModel):
+    steps: List[PressureScenarioStep] = Field(default_factory=list)
+    pre_scripts: List[str] = Field(default_factory=list)
+    post_scripts: List[str] = Field(default_factory=list)
+    performance: Optional[PerformanceSettings] = None
+
+
+class PressureScenarioRequest(BaseModel):
+    name: str
+    type: Literal["functional", "performance"]
+    environment: Optional[str] = None
+    description: Optional[str] = None
+    config: Optional[PressureScenarioConfig] = None
+
+
+class PressureScenarioUpdate(BaseModel):
+    name: Optional[str] = None
+    environment: Optional[str] = None
+    description: Optional[str] = None
+    config: Optional[PressureScenarioConfig] = None
+    status: Optional[Literal["idle", "running", "success", "failed"]] = None
+    type: Optional[Literal["functional", "performance"]] = None
+
+
+class PressureRunRequest(BaseModel):
+    scenario_id: str
+    note: Optional[str] = None
+    mode: Optional[str] = "manual"
+    iterations: int = Field(default=1, ge=1, le=3600)
+    threads: int = Field(default=1, ge=1, le=50)
+    run_type: Optional[Literal["functional", "performance"]] = None
+
+
+class PressureSummaryResponse(BaseModel):
+    total_scenarios: int
+    functional_scenarios: int
+    performance_scenarios: int
+    executions_this_week: int
+    functional_executions_this_week: int
+    performance_executions_this_week: int
+    running_runs: int
+    metrics_snapshot: Dict[str, Any]
+
+
+def _config_to_dict(config: Optional[PressureScenarioConfig]) -> Dict[str, Any]:
+    if config is None:
+        return {"steps": []}
+    data = config.dict(exclude_none=True)
+    if "steps" not in data:
+        data["steps"] = []
+    return data
+
+
+def _sync_linked_testcases(steps: List[Dict[str, Any]]):
+    for step in steps:
+        if not step.get("sync_testcase"):
+            continue
+        testcase_name = step.get("testcase")
+        if not testcase_name:
+            continue
+        try:
+            testcase_data = storage.load_testcase(testcase_name)
+        except Exception:
+            continue
+
+        request_data = step.get("request") or {}
+
+        if step.get("name"):
+            testcase_data["name"] = step["name"]
+
+        for field in ["method", "url", "headers", "params", "body", "environment", "request_message_type", "response_message_type"]:
+            value = request_data.get(field)
+            if value is not None:
+                testcase_data[field] = value
+
+        assertions = step.get("assertions")
+        if assertions is not None:
+            testcase_data["assertions"] = assertions
+
+        storage.save_testcase(testcase_data, filename=testcase_name)
+
+
+def _build_step_payload(step: Dict[str, Any], fallback_environment: Optional[str]) -> Optional[Dict[str, Any]]:
+    request_data = step.get("request") or {}
+    url = request_data.get("url")
+    if not url:
+        return None
+    payload = {
+        "method": request_data.get("method") or "GET",
+        "url": url,
+        "headers": request_data.get("headers") or {},
+        "params": request_data.get("params") or {},
+        "body": request_data.get("body"),
+        "assertions": step.get("assertions") or [],
+        "environment": request_data.get("environment") or fallback_environment,
+        "request_message_type": request_data.get("request_message_type"),
+        "response_message_type": request_data.get("response_message_type"),
+    }
+    return payload
+
+
+def _calculate_percentile(values: List[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    if percentile <= 0:
+        return min(values)
+    if percentile >= 1:
+        return max(values)
+    ordered = sorted(values)
+    index = int(round(percentile * (len(ordered) - 1)))
+    return ordered[index]
+
+
+async def _execute_steps_for_run(
+    scenario: Dict[str, Any],
+    *,
+    iterations: int,
+    threads: int,
+    run_type: Optional[str] = None,
+    duration_seconds_target: Optional[float] = None,
+) -> Dict[str, Any]:
+    steps = scenario.get("config", {}).get("steps", [])
+    step_payloads: List[Dict[str, Any]] = []
+    for step in steps:
+        payload = _build_step_payload(step, scenario.get("environment"))
+        if payload:
+            step_payloads.append(payload)
+
+    scenario_type = (run_type or scenario.get("type") or "functional").lower()
+
+    if not step_payloads:
+        empty_metrics = (
+            {
+                "duration_seconds": 0,
+                "success_rate": 100,
+                "total_cases": 0,
+                "passed_cases": 0,
+            }
+            if scenario_type == "functional"
+            else {
+                "rps": 0,
+                "requests_per_second": 0,
+                "latency_avg_ms": 0,
+                "latency_p90_ms": 0,
+                "latency_p95_ms": 0,
+                "latency_p99_ms": 0,
+                "error_rate": 0,
+                "total_requests": 0,
+                "success_count": 0,
+                "failure_count": 0,
+            }
+        )
+        return {"success": True, "metrics": empty_metrics, "errors": []}
+
+    semaphore = asyncio.Semaphore(max(1, threads))
+    success_count = 0
+    latencies: List[float] = []
+    errors: List[str] = []
+    start_time = time.perf_counter()
+
+    async def run_single(payload: Dict[str, Any]):
+        nonlocal success_count
+        async with semaphore:
+            try:
+                response = await send_request(SendRequestPayload(**payload))
+                latency = getattr(response, "elapsedMs", None)
+                if latency is not None:
+                    latencies.append(float(latency))
+                failed_assertions = [
+                    f"{res.assertion}: {res.error or 'failed'}"
+                    for res in (response.assertionResults or [])
+                    if not res.passed
+                ]
+                if failed_assertions:
+                    errors.append(
+                        f"{payload.get('method', 'GET')} {payload.get('url', '')} -> 断言失败：{'；'.join(failed_assertions)}"
+                    )
+                else:
+                    success_count += 1
+            except HTTPException as exc:
+                detail = exc.detail if isinstance(exc.detail, str) else json.dumps(exc.detail, ensure_ascii=False)
+                errors.append(f"{payload.get('method', 'GET')} {payload.get('url', '')} -> {detail}")
+            except Exception as exc:
+                errors.append(f"{payload.get('method', 'GET')} {payload.get('url', '')} -> {str(exc)}")
+
+    total_requests = 0
+
+    if scenario_type == "performance" and duration_seconds_target and duration_seconds_target > 0:
+        end_time = time.perf_counter() + duration_seconds_target
+        worker_count = max(1, threads)
+
+        async def worker():
+            nonlocal total_requests
+            while time.perf_counter() < end_time:
+                for payload in step_payloads:
+                    if time.perf_counter() >= end_time:
+                        break
+                    total_requests += 1
+                    await run_single(payload)
+
+        await asyncio.gather(*(asyncio.create_task(worker()) for _ in range(worker_count)))
+        if total_requests == 0:
+            total_requests += 1
+            await run_single(step_payloads[0])
+    else:
+        iterations_count = max(1, iterations)
+        worker_tasks: List[asyncio.Task] = []
+        for _ in range(max(1, threads)):
+            async def worker_loop():
+                nonlocal total_requests
+                for _ in range(iterations_count):
+                    for payload in step_payloads:
+                        total_requests += 1
+                        await run_single(payload)
+            worker_tasks.append(asyncio.create_task(worker_loop()))
+        await asyncio.gather(*worker_tasks)
+
+    duration = max(time.perf_counter() - start_time, 0.0001)
+    failure_count = max(total_requests - success_count, 0)
+    success_rate = round((success_count / total_requests) * 100, 2) if total_requests else 100
+    failure_rate = round((failure_count / total_requests) * 100, 2) if total_requests else 0
+    run_success = True
+    if scenario_type == "functional":
+        metrics = {
+            "duration_seconds": round(duration, 2),
+            "success_rate": success_rate,
+            "total_cases": total_requests,
+            "passed_cases": success_count,
+            "failed_cases": failure_count,
+            "failure_rate": failure_rate,
+        }
+    else:
+        latency_avg = sum(latencies) / len(latencies) if latencies else 0
+        latency_p90 = _calculate_percentile(latencies, 0.90) if latencies else 0
+        latency_p95 = _calculate_percentile(latencies, 0.95) if latencies else 0
+        latency_p99 = _calculate_percentile(latencies, 0.99) if latencies else 0
+        rps_value = total_requests / duration if duration else 0
+        metrics = {
+            "rps": round(rps_value, 2),
+            "requests_per_second": round(rps_value, 2),
+            "latency_avg_ms": round(latency_avg, 2),
+            "latency_p90_ms": round(latency_p90, 2),
+            "latency_p95_ms": round(latency_p95, 2),
+            "latency_p99_ms": round(latency_p99, 2),
+            "error_rate": round(100 - success_rate, 2),
+            "total_requests": total_requests,
+            "success_count": success_count,
+            "failure_count": failure_count,
+        }
+
+    return {
+        "success": run_success,
+        "metrics": metrics,
+        "errors": errors,
+    }
+
+
+async def _execute_pressure_run(
+    run: Dict[str, Any],
+    scenario: Dict[str, Any],
+    *,
+    iterations: int,
+    threads: int,
+    run_type: Optional[str] = None,
+    duration_seconds_target: Optional[float] = None,
+):
+    try:
+        result = await _execute_steps_for_run(
+            scenario,
+            iterations=iterations,
+            threads=threads,
+            run_type=run_type,
+            duration_seconds_target=duration_seconds_target,
+        )
+        pressure_storage.complete_run(
+            run["id"],
+            success=result["success"],
+            metrics=result["metrics"],
+            errors=result.get("errors"),
+        )
+    except Exception as exc:
+        pressure_storage.complete_run(run["id"], success=False, metrics={}, errors=[str(exc)])
 
 
 # ==================== API Routes ====================
@@ -896,6 +1212,97 @@ async def ai_status():
             "confidence_scoring": True
         }
     }
+
+
+def _validate_scenario_type(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    value = value.lower()
+    if value not in {"functional", "performance"}:
+        raise HTTPException(status_code=400, detail="scenario_type must be functional or performance")
+    return value
+
+
+@app.get("/pressure/scenarios")
+async def list_pressure_scenarios(scenario_type: Optional[str] = None):
+    scenario_type = _validate_scenario_type(scenario_type)
+    return {"scenarios": pressure_storage.list_scenarios(scenario_type)}
+
+
+@app.post("/pressure/scenarios")
+async def create_pressure_scenario(payload: PressureScenarioRequest):
+    config_data = _config_to_dict(payload.config)
+    _sync_linked_testcases(config_data.get("steps", []))
+    scenario = pressure_storage.create_scenario({
+        "name": payload.name,
+        "type": payload.type,
+        "environment": payload.environment,
+        "description": payload.description,
+        "config": config_data,
+    })
+    return {"scenario": scenario}
+
+
+@app.put("/pressure/scenarios/{scenario_id}")
+async def update_pressure_scenario(scenario_id: str, payload: PressureScenarioUpdate):
+    scenario = pressure_storage.get_scenario(scenario_id)
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    update_payload = payload.dict(exclude_unset=True)
+    if "config" in update_payload:
+        config_data = _config_to_dict(payload.config)
+        _sync_linked_testcases(config_data.get("steps", []))
+        update_payload["config"] = config_data
+    updated = pressure_storage.update_scenario(scenario_id, update_payload)
+    return {"scenario": updated}
+
+
+@app.delete("/pressure/scenarios/{scenario_id}")
+async def delete_pressure_scenario(scenario_id: str):
+    scenario = pressure_storage.get_scenario(scenario_id)
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    pressure_storage.delete_scenario(scenario_id)
+    return {"message": "Scenario deleted"}
+
+
+@app.get("/pressure/runs")
+async def list_pressure_runs(scenario_type: Optional[str] = None):
+    scenario_type = _validate_scenario_type(scenario_type)
+    return {"runs": pressure_storage.list_runs(scenario_type)}
+
+
+@app.post("/pressure/runs")
+async def trigger_pressure_run(payload: PressureRunRequest):
+    scenario = pressure_storage.get_scenario(payload.scenario_id)
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    run_type = (payload.run_type or scenario.get("type") or "functional").lower()
+    run = pressure_storage.create_run(
+        scenario,
+        note=payload.note,
+        mode=payload.mode,
+        iterations=payload.iterations,
+        threads=payload.threads,
+        run_type=run_type,
+    )
+    duration_target = payload.iterations if run_type == "performance" else None
+    asyncio.create_task(
+        _execute_pressure_run(
+            run,
+            scenario,
+            iterations=payload.iterations,
+            threads=payload.threads,
+            run_type=run_type,
+            duration_seconds_target=duration_target,
+        )
+    )
+    return {"run": run}
+
+
+@app.get("/pressure/summary", response_model=PressureSummaryResponse)
+async def pressure_summary():
+    return pressure_storage.summary()
 
 
 if __name__ == "__main__":
